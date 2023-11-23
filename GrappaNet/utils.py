@@ -1,19 +1,14 @@
-import random, h5py, os, glob, sys, time
 import numpy as np
-import matplotlib.pyplot as plt
-from numpy import fft 
-from medpy.io import save, load
-from pygrappa import grappa,mdgrappa
+from pygrappa import mdgrappa
 from pygrappa import find_acs 
 from collections import defaultdict
-from time import time
-import logging
 
 import numpy as np
 from skimage.util import view_as_windows
 
 from pygrappa.train_kernels import train_kernels
 from pygrappa.find_acs import find_acs
+
 
 # +
 def calculate_mask(nFE,nPE,center_fraction,acc):
@@ -36,6 +31,8 @@ def calculate_mask(nFE,nPE,center_fraction,acc):
     mask = np.repeat(line[np.newaxis, ...], nFE, axis=0)
     
     return mask
+
+
 def estimate_mdgrappa_kernel(
         kspace,
         calib=None,
@@ -101,30 +98,41 @@ def estimate_mdgrappa_kernel(
         wt={k: Ws[ii, :np.sum(np.frombuffer(k, dtype=bool))*nc, :]
                  for ii, k in enumerate(P)}
         return wt, P
-    
-def Grappa_recon(kspace,start, end):
-    calib = kspace[:,:,start:end].copy() # call copy()!
-    #print("k-space", kspace.shape,calib.shape)
-    # coil_axis=-1 is default, so if coil dimension is last we don't
-    # need to explicity provide it
+
+
+def Grappa_recon(kspace,start,end):
+    calib = kspace[:,:,start:end].copy()
     res, wt = mdgrappa(kspace, calib, kernel_size=(5, 5),coil_axis=0, ret_weights=True)
     return res, wt
 
 
+#def comp_sub_kspace(subk,crop_size):
+#    processed_subk = np.zeros(crop_size)
+#    s = subk.shape
+#    processed_subk[:,0:s[1],0:s[2]] = subk
+#    return processed_subk
+
 
 def comp_sub_kspace(subk,crop_size):
-    #print('img:', subk.shape)
-    processed_subk=np.zeros(crop_size)
-    s=subk.shape
-    processed_subk[:,0:s[1],0:s[2]]=subk
-    return processed_subk
+    s = subk.shape
+    start_height = s[1]//2 - (crop_size[1]//2)
+    start_width = s[2]//2 - (crop_size[2]//2)
+    return subk[:,start_height:(start_height+crop_size[1]),start_width:(start_width+crop_size[2])]
 
-def comp_img(img, crop_size_2):
-    #print('img:', img.shape)
-    processed_img=np.zeros((crop_size_2))
-    s=img.shape
-    processed_img[:,0:s[1],0:s[2]]=img
-    return processed_img
+
+#def comp_img(img, crop_size):
+#    processed_img = np.zeros((crop_size))
+#    s = img.shape
+#    processed_img[:,0:s[1],0:s[2]] = img
+#    return processed_img
+
+
+def comp_img(img,crop_size):
+    s = img.shape
+    start_height = s[1]//2 - (crop_size[1]//2)
+    start_width = s[2]//2 - (crop_size[2]//2)
+    return img[:,start_height:(start_height+crop_size[1]),start_width:(start_width+crop_size[2])]
+
 
 def apply_kernel_weight(
         kspace,
