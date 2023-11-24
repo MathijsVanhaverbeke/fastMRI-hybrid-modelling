@@ -153,18 +153,23 @@ for i in range(dims[0]):
 print('Done. Performing a datasplit...')
 
 
-## Create a dataset split 80-10-10
+## Create a dataset split 90-10 training-validation
 
 x_train = X_train[0:int(X_train.shape[0]-X_train.shape[0]*0.1),:,:,:]
 y_train = Y_rss[0:int(X_train.shape[0]-X_train.shape[0]*0.1),:,:]
 x_test = X_train[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:,:]
 y_test = Y_rss[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:]
 y_test = np.reshape(y_test, (y_test.shape[0],crop_size[1],crop_size[2]))
-train_indx = np.array(range(0,int(X_train.shape[0]-X_train.shape[0]*0.1)),dtype=int)
-test_indx = np.array(range(int(X_train.shape[0]-X_train.shape[0]*0.1),X_train.shape[0]),dtype=int)
 
 
 print('Done. Visualizing an example of the processed data to check if everything is ok...')
+
+
+
+## NOTE TO SELF: Wouldn't it make more sense to perform the data saving step here if we want to work with batches of data during the model training?
+## Then we would save batches of training data inputs, training data targets and validation data inputs, validation data targets during each loop
+## See Notion
+
 
 
 ## Visualize an example of the processed data
@@ -184,7 +189,7 @@ print('Done. Building the GrappaNet model architecture...')
 
 ## Build the model
 
-# WARNING: TAKE INTO ACCOUNT THAT TRAINING THE MODEL ITSELF ALSO TAKES UP SUBSTANTIAL AMOUNTS OF RAM !
+# WARNING: TAKE INTO ACCOUNT THAT TRAINING THE MODEL ITSELF ALSO TAKES UP SUBSTANTIAL AMOUNTS OF RAM
 # If not enough RAM margin is foreseen, an std::bad_alloc() error will be thrown
 
 import gc
@@ -354,7 +359,7 @@ print('Done. Training the model...')
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/model_GrappaNet.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_GrappaNet.h5"
 
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
@@ -370,7 +375,7 @@ def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 1
+    epochs = 20
     batch_size = 8
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
@@ -378,22 +383,18 @@ with strategy.scope():
     #model.compile(loss=model_loss_ssim, optimizer=RMSprop(learning_rate=0.0003), metrics=[metrics])
 
 
-history = model.fit([x_train,train_indx], y_train,
+history = model.fit(x_train, y_train,
             epochs=epochs,
             batch_size=batch_size,
             shuffle=False,
-            validation_data=([x_test,test_indx], y_test),
+            validation_data=(x_test, y_test),
             callbacks=get_callbacks(model_name,0.6,10,1),
             max_queue_size=32,
             workers=100,
-            use_multiprocessing=False
-             )
+            use_multiprocessing=False)
 
 
-model_json = model.to_json()
-with open("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.json", "w") as json_file:
-    json_file.write(model_json)
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet_json.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.h5")
 
 
 print("Done. Saved model to disk.")
@@ -401,6 +402,13 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
+
+print(history.history)
+
+import pandas as pd
+
+pd.DataFrame(history.history).plot(figsize=(8,5))
+plt.show()
 
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
