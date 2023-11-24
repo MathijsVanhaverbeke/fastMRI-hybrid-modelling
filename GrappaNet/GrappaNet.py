@@ -1,3 +1,14 @@
+## Set up a resource limiter, such that the script doesn't take up more than 40GB of RAM. In that case, an error will be thrown
+
+import resource
+
+# Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number
+resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+
+
+print('Resource limit set. Importing libraries...')
+
+
 ## Import libraries
 
 import h5py, os
@@ -8,6 +19,8 @@ from utils import estimate_mdgrappa_kernel, calculate_mask, comp_sub_kspace, com
 import math
 from pathlib import Path
 from itertools import chain
+import gc
+import time
 
 
 print('Libraries imported. Starting to prepare the dataset...')
@@ -28,7 +41,7 @@ test_files = Path(test_path).glob('**/*')
 fully_sampled_test_files = Path(fully_sampled_test_path).glob('**/*')
 all_files = chain(training_files, validation_files, test_files, fully_sampled_test_files)
 
-clustered_data_2 = np.load("/home/mvhave7/Results/Preprocessing/exploration/16coil_slice_size_clustered_fastmri_data.npy", allow_pickle=True)
+clustered_data_2 = np.load("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/exploration/16coil_slice_size_clustered_fastmri_data.npy", allow_pickle=True)
 clustered_data_2 = clustered_data_2.item()
 
 files_16_640_320 = clustered_data_2[(640,320)]
@@ -42,6 +55,10 @@ print('All variables are loaded. Starting training dataset construction and GRAP
 
 ## Create training data pairs and estimate GRAPPA kernels
 
+# WARNING: CAN TAKE UP LOTS OF RAM, WHICH SHOULD BE LIMITED TO 40GB ON MICSD01
+# Possible remedy: split this script in two parts; preprocessing (where we load stuff, do stuff, save stuff, delete stuff from RAM memory and repeat in a for-loop) and training (where we load the data in batches to prevent RAM overflow). Note: when saving variables to the hard drive, it is good to know that binary format files take up less time to load back in later
+# Other remedy: decrease training dataset size...
+
 cnt = 1
 last_mask = None
 X_train = []
@@ -50,7 +67,8 @@ grappa_wt = []
 grappa_p = []
 
 # Optional:
-#training_files = training_files[:70]
+training_files = training_files[:25]   # Should result in a dataset comprised of around 400 multi-coil slices
+# Last time, 40GB of RAM was reached after processing 27 files
 
 for mri_f in sorted(training_files):
     filename = os.path.basename(mri_f)
@@ -79,8 +97,10 @@ for mri_f in sorted(training_files):
             grappa_wt.append(wt)
             grappa_p.append(ps)
         
-        print(cnt,filename,sequence,nSL, nCh, nFE, nPE, sub_kspace.shape)
+        print(cnt,filename,sequence,nSL,nCh,nFE,nPE,sub_kspace.shape)
         cnt += 1
+        gc.collect()
+        time.sleep(1)
 
 
 print('Done. Saving results for other runs in the future...')
@@ -93,11 +113,11 @@ import pickle
 Y_train = np.array(Y_train).astype(np.float32)
 X_train = np.array(X_train).astype(np.float32)
 
-path_to_save_mri_data = '/home/mvhave7/Results/Preprocessing/mri/'
-path_to_save_grappa_data = '/home/mvhave7/Results/Preprocessing/grappa/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri/'
+path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
 
-np.save(path_to_save_mri_data+"trainig_data_GrappaNet_16_coils.npy",X_train)
-np.save(path_to_save_mri_data+"trainig_data_GT_GrappaNet_16_colis.npy",Y_train)
+np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils.npy", X_train)
+np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_colis.npy", Y_train)
 
 with open(path_to_save_grappa_data+'grappa_wt.pickle', 'wb') as handle:
     pickle.dump(grappa_wt, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -166,8 +186,8 @@ print('Done. Building the GrappaNet model architecture...')
 ## Build the model
 
 import gc
+model = None
 gc.collect()
-model=None
 
 import tensorflow as tf
 import numpy as np
@@ -332,7 +352,7 @@ print('Done. Training the model...')
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 
-model_name = "/home/mvhave7/Results/Models/model_GrappaNet.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/model_GrappaNet.h5"
 
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
@@ -369,9 +389,9 @@ history = model.fit([x_train,train_indx], y_train,
 
 
 model_json = model.to_json()
-with open("/home/mvhave7/Results/Models/final_model_GrappaNet.json", "w") as json_file:
+with open("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.json", "w") as json_file:
     json_file.write(model_json)
-model.save_weights("/home/mvhave7/Results/Models/final_model_GrappaNet_json.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet_json.h5")
 
 
 print("Done. Saved model to disk.")
