@@ -160,6 +160,8 @@ y_train = Y_rss[0:int(X_train.shape[0]-X_train.shape[0]*0.1),:,:]
 x_test = X_train[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:,:]
 y_test = Y_rss[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:]
 y_test = np.reshape(y_test, (y_test.shape[0],crop_size[1],crop_size[2]))
+grappa_train_indx = np.array(range(0,int(X_train.shape[0]-X_train.shape[0]*0.1)),dtype=int)
+grappa_test_indx = np.array(range(int(X_train.shape[0]-X_train.shape[0]*0.1),X_train.shape[0]),dtype=int)
 
 
 print('Done. Visualizing an example of the processed data to check if everything is ok...')
@@ -174,7 +176,8 @@ print('Done. Visualizing an example of the processed data to check if everything
 
 ## Visualize an example of the processed data
 
-indx = 50   # Slice
+# Slice
+indx = 50
 ref_img = abs(fft.fftshift(fft.ifft2(x_train[indx,:,:,:])))
 
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,10))
@@ -375,7 +378,7 @@ def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 20
+    epochs = 1
     batch_size = 8
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
@@ -383,11 +386,11 @@ with strategy.scope():
     #model.compile(loss=model_loss_ssim, optimizer=RMSprop(learning_rate=0.0003), metrics=[metrics])
 
 
-history = model.fit(x_train, y_train,
+history = model.fit([x_train, grappa_train_indx], y_train,
             epochs=epochs,
             batch_size=batch_size,
             shuffle=False,
-            validation_data=(x_test, y_test),
+            validation_data=([x_test, grappa_test_indx], y_test),
             callbacks=get_callbacks(model_name,0.6,10,1),
             max_queue_size=32,
             workers=100,
