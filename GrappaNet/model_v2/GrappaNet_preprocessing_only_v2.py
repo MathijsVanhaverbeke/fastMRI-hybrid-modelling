@@ -164,12 +164,12 @@ for batch in range(num_batches):
     path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
 
     np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_train)
-    np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_colis_batch_{}.npy".format(batch_number), y_train)
+    np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_train)
     np.save(path_to_save_mri_data+"validation_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_test)
-    np.save(path_to_save_mri_data+"validation_data_GT_GrappaNet_16_colis_batch_{}.npy".format(batch_number), y_test)
+    np.save(path_to_save_mri_data+"validation_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_test)
 
     np.save(path_to_save_grappa_data+"grappa_train_indx_GrappaNet_16_coils_batch_{}.npy".format(batch_number), grappa_train_indx)
-    np.save(path_to_save_grappa_data+"grappa_test_indx_GrappaNet_16_colis_batch_{}.npy".format(batch_number), grappa_test_indx)
+    np.save(path_to_save_grappa_data+"grappa_validation_indx_GrappaNet_16_coils_batch_{}.npy".format(batch_number), grappa_test_indx)
 
     with open(path_to_save_grappa_data+'grappa_wt_batch_{}.pickle'.format(batch_number), 'wb') as handle:
         pickle.dump(grappa_wt, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -218,7 +218,7 @@ Y_train = []
 grappa_wt = []
 grappa_p = []
 
-for mri_f in batch_files:
+for mri_f in remaining_files:
     filename = os.path.basename(mri_f)
     filename = filename.replace(".h5","")
     with h5py.File(mri_f,'r') as f:
@@ -300,12 +300,12 @@ path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Result
 path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
 
 np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_train)
-np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_colis_batch_{}.npy".format(batch_number), y_train)
+np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_train)
 np.save(path_to_save_mri_data+"validation_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_test)
-np.save(path_to_save_mri_data+"validation_data_GT_GrappaNet_16_colis_batch_{}.npy".format(batch_number), y_test)
+np.save(path_to_save_mri_data+"validation_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_test)
 
 np.save(path_to_save_grappa_data+"grappa_train_indx_GrappaNet_16_coils_batch_{}.npy".format(batch_number), grappa_train_indx)
-np.save(path_to_save_grappa_data+"grappa_validation_indx_GrappaNet_16_colis_batch_{}.npy".format(batch_number), grappa_test_indx)
+np.save(path_to_save_grappa_data+"grappa_validation_indx_GrappaNet_16_coils_batch_{}.npy".format(batch_number), grappa_test_indx)
 
 with open(path_to_save_grappa_data+'grappa_wt_batch_{}.pickle'.format(batch_number), 'wb') as handle:
     pickle.dump(grappa_wt, handle, protocol=pickle.HIGHEST_PROTOCOL)

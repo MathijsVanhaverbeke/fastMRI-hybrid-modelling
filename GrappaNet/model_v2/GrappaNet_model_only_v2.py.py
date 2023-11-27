@@ -55,7 +55,8 @@ file_paths_grappa_p = sorted(glob.glob(path_to_save_grappa_data+"grappa_p_batch_
 
 
 def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
-    global grappa_wt, grappa_p
+    global grappa_wt
+    global grappa_p
     for file_path_train, file_path_train_GT, file_path_grappa_indx_train, file_path_grappa_wt, file_path_grappa_p in zip (file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
         x_train = np.load(file_path_train)
         y_train = np.load(file_path_train_GT)
@@ -65,15 +66,22 @@ def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_ind
         with open(file_path_grappa_p, 'rb') as handle:
             grappa_p = pickle.load(handle)
         
-        yield ([x_train, grappa_train_indx], y_train)
+        yield ((x_train, grappa_train_indx), y_train)
 
-def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val):
-    for file_path_val, file_path_val_GT, file_path_grappa_inx_val in zip(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val):
+
+def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
+    global grappa_wt
+    global grappa_p
+    for file_path_val, file_path_val_GT, file_path_grappa_indx_val, file_path_grappa_wt, file_path_grappa_p in zip(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
         x_test = np.load(file_path_val)
         y_test = np.load(file_path_val_GT)
-        grappa_test_indx = np.load(file_path_grappa_inx_val)
+        grappa_test_indx = np.load(file_path_grappa_indx_val)
+        with open(file_path_grappa_wt, 'rb') as handle:
+            grappa_wt = pickle.load(handle)
+        with open(file_path_grappa_p, 'rb') as handle:
+            grappa_p = pickle.load(handle)
 
-        yield ([x_test, grappa_test_indx], y_test)
+        yield ((x_test, grappa_test_indx), y_test)
 
 
 print('Done. Setting up tensorflow structure to process in batches...')
@@ -81,9 +89,8 @@ print('Done. Setting up tensorflow structure to process in batches...')
 
 ## Create a .from_generator() object
 
-# Note: possible missing arguments: 'output_types' and 'output_shapes'
-training_dataset = tf.data.Dataset.from_generator(train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p])
-validation_dataset = tf.data.Dataset.from_generator(validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val])
+training_dataset = tf.data.Dataset.from_generator(train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+validation_dataset = tf.data.Dataset.from_generator(validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -254,7 +261,7 @@ def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 20
+    epochs = 1  # In the original paper, 20 epochs were used
     batch_size = 8  # This batch size has unit 'number of slices', not 'number of files'
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
@@ -266,7 +273,7 @@ history = model.fit(training_dataset,
             epochs=epochs,
             batch_size=batch_size,
             shuffle=False,
-            validation_data=(validation_dataset),
+            validation_data=validation_dataset,
             callbacks=get_callbacks(model_name,0.6,10,1),
             max_queue_size=32,
             workers=100,
