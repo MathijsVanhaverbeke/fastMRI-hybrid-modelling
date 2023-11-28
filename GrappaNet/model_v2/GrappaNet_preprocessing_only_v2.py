@@ -55,7 +55,7 @@ print('All variables are loaded. Start preprocessing data in batches...')
 
 
 batch_number = 1
-batch_size = 10
+batch_size = 5
 # Note: batch_size here has unit 'number of files', not 'number of slices'
 
 
