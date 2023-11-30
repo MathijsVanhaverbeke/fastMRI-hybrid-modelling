@@ -1,4 +1,4 @@
-## Set up a resource limiter, such that the script doesn't take up more than a certain amount of of RAM (normally 40GB is the limit). In that case, an error will be thrown
+## Set up a resource limiter, such that the script doesn't take up more than a certain amount of RAM (normally 40GB is the limit). In that case, an error will be thrown
 
 import resource
 

@@ -1,4 +1,4 @@
-## Set up a resource limiter, such that the script doesn't take up more than a certain amount of of RAM (normally 40GB is the limit). In that case, an error will be thrown
+## Set up a resource limiter, such that the script doesn't take up more than a certain amount of RAM (normally 40GB is the limit). In that case, an error will be thrown
 
 import resource
 
@@ -15,25 +15,19 @@ print('Resource limit set. Importing libraries...')
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import apply_kernel_weight
-import math
 import glob
 import pickle
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import gc
 import time
 import tensorflow as tf
-from tensorflow.keras import backend as k
-from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D
 from tensorflow.keras.layers import add, Dropout, Lambda, ReLU
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, RMSprop
 import tensorflow_addons as tfa
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 model = None

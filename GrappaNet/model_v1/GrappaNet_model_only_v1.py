@@ -1,4 +1,4 @@
-## Set up a resource limiter, such that the script doesn't take up more than a certain amount of of RAM (normally 40GB is the limit). In that case, an error will be thrown
+## Set up a resource limiter, such that the script doesn't take up more than a certain amount of RAM (normally 40GB is the limit). In that case, an error will be thrown
 
 import resource
 
@@ -32,7 +32,7 @@ path_of_saved_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Resul
 path_of_saved_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
 
 X_train = np.load(path_of_saved_mri_data+"training_data_GrappaNet_16_coils.npy")
-Y_train = np.load(path_of_saved_mri_data+"training_data_GT_GrappaNet_16_colis.npy")
+Y_train = np.load(path_of_saved_mri_data+"training_data_GT_GrappaNet_16_coils.npy")
 
 with open(path_of_saved_grappa_data+'grappa_wt.pickle', 'rb') as handle:
     grappa_wt = pickle.load(handle)
