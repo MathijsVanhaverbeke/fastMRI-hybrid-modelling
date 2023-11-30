@@ -2,8 +2,7 @@
 
 import resource
 
-# Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -320,7 +319,7 @@ print('Done. Visualizing an example of the processed data to check if everything
 ## Visualize an example of the processed data
 
 # Slice
-indx = 50
+indx = 10
 ref_img = abs(fft.fftshift(fft.ifft2(x_train[indx,:,:,:])))
 
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,10))

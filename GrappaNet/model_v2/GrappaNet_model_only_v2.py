@@ -3,7 +3,8 @@
 import resource
 
 # Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+memory_limit = 100_000_000_000
+resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
 
 print('Resource limit set. Importing libraries...')
@@ -18,9 +19,12 @@ import math
 import glob
 import pickle
 import pandas as pd
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import gc
+import tensorflow as tf
+from tensorflow.keras import backend as k
+from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D
 from tensorflow.keras.layers import add, Dropout, Lambda, ReLU
 from tensorflow.keras.layers import UpSampling2D
@@ -33,6 +37,8 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 model = None
 crop_size = (32,640,320)
+batch_size = 8
+# This batch size has unit 'number of slices', not 'number of files'
 
 
 print('Libraries imported. Starting to prepare the dataset...')
@@ -89,8 +95,14 @@ print('Done. Setting up tensorflow structure to process in batches...')
 
 ## Create a .from_generator() object
 
-training_dataset = tf.data.Dataset.from_generator(train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
-validation_dataset = tf.data.Dataset.from_generator(validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+
+
+## Add pre-fetch
+
+training_dataset = training_dataset.prefetch(buffer_size=batch_size)
+validation_dataset = validation_dataset.prefetch(buffer_size=batch_size)
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -251,21 +263,27 @@ model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/be
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
 
+class ClearMemory(Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        gc.collect()
+        k.clear_session()
+
 def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, verbosity=1):
     callbacks = list()
     callbacks.append(ModelCheckpoint(model_file, save_best_only=True))
     callbacks.append(ReduceLROnPlateau(factor=learning_rate_drop, patience=learning_rate_patience, verbose=verbosity))
     callbacks.append(EarlyStopping(verbose=verbosity, patience=200))
+    callbacks.append(ClearMemory())
     return callbacks
 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
     epochs = 1  # In the original paper, 20 epochs were used
-    batch_size = 8  # This batch size has unit 'number of slices', not 'number of files'
+    batch_size = batch_size  # This batch size has unit 'number of slices', not 'number of files'
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
-    model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics])
+    model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics], run_eagerly=True)
     #model.compile(loss=model_loss_ssim, optimizer=RMSprop(learning_rate=0.0003), metrics=[metrics])
 
 
