@@ -319,7 +319,7 @@ print('Done. Visualizing an example of the processed data to check if everything
 ## Visualize an example of the processed data
 
 # Slice
-indx = 10
+indx = 7
 ref_img = abs(fft.fftshift(fft.ifft2(x_train[indx,:,:,:])))
 
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,10))
@@ -330,3 +330,4 @@ plt.show()
 
 
 print('Done.')
+

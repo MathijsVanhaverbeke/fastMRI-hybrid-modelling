@@ -22,6 +22,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import gc
+import time
 import tensorflow as tf
 from tensorflow.keras import backend as k
 from tensorflow.keras.callbacks import Callback
@@ -74,6 +75,11 @@ def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_ind
         
         yield ((x_train, grappa_train_indx), y_train)
 
+        del x_train, y_train, grappa_train_indx, grappa_wt, grappa_p
+        time.sleep(1)
+        gc.collect()
+        time.sleep(1)
+
 
 def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
     global grappa_wt
@@ -89,14 +95,22 @@ def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_in
 
         yield ((x_test, grappa_test_indx), y_test)
 
+        del x_test, y_test, grappa_test_indx, grappa_wt, grappa_p
+        time.sleep(1)
+        gc.collect()
+        time.sleep(1)
+
 
 print('Done. Setting up tensorflow structure to process in batches...')
 
 
 ## Create a .from_generator() object
 
-training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
-validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+training_dataset = tf.data.Dataset.from_generator(generator=train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
+validation_dataset = tf.data.Dataset.from_generator(generator=validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
+
+#training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+#validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 
 
 ## Add pre-fetch
@@ -263,27 +277,21 @@ model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/be
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
 
-class ClearMemory(Callback):
-    def on_epoch_end(self, epoch, logs=None):
-        gc.collect()
-        k.clear_session()
-
 def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, verbosity=1):
     callbacks = list()
     callbacks.append(ModelCheckpoint(model_file, save_best_only=True))
     callbacks.append(ReduceLROnPlateau(factor=learning_rate_drop, patience=learning_rate_patience, verbose=verbosity))
     callbacks.append(EarlyStopping(verbose=verbosity, patience=200))
-    callbacks.append(ClearMemory())
     return callbacks
 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 1  # In the original paper, 20 epochs were used
+    epochs = 1  # In the original paper, however, 20 epochs were used
     batch_size = batch_size  # This batch size has unit 'number of slices', not 'number of files'
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
-    model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics], run_eagerly=True)
+    model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics])
     #model.compile(loss=model_loss_ssim, optimizer=RMSprop(learning_rate=0.0003), metrics=[metrics])
 
 

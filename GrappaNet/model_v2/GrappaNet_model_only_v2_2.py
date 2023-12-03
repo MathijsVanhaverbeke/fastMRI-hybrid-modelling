@@ -209,11 +209,6 @@ def build_model(input_shape, n_filter=32, n_depth=4, dropout_rate=0.05):
     return Model(inputs=[input_layer,input_layer_grappa_wt_indx],outputs=data_con_layer)
 
 
-print('Done. Training the model in batches...')
-
-
-## Train the model
-
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
 epochs = 1
 model = build_model(input_shape)
@@ -289,6 +284,12 @@ val_rmse = tf.keras.metrics.RootMeanSquaredError()
 
 # Define optimizer
 optimizer = tf.optimizers.Adam(learning_rate=0.0003)
+
+
+print('Done. Training the model in batches...')
+
+
+## Train the model
 
 # Write a custom training loop which trains the model on batches which are loaded in on the fly
 for batch in range(num_batches):
