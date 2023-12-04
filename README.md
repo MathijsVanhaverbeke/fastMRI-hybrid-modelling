@@ -23,10 +23,16 @@ Currently, there are two code versions of GrappaNet:
 ## Make sure you use a GPU when running a process
 The micgpu command only ensures that if you use GPU, this is done on the desired GPU. Luckily, when using tensorflow, models will transparently run on a single GPU with no code changes required IF the tensorflow's required CUDA and cuDNN versions are installed and added to the PATH and LD_LIBRARY_PATH variables. If this is not the case, CUDA will throw an error and start using a CPU. The following set-up is known to work for tensorflow 2.2.0:
 
-> 1. echo $PATH: /usr/local/cuda-10.2/bin:/usr/local/cuda-10.1/bin:/opt/ANTs/bin:/usr/local/fsl/bin:/usr/local/cuda/bin:/SOFTWARE/scripts:/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/conda/envs/DL_MRI_reconstruction/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+> 1. echo $PATH: 
+>
+> /usr/local/cuda-10.2/bin:/usr/local/cuda-10.1/bin:/opt/ANTs/bin:/usr/local/fsl/bin:/usr/local/cuda/bin:/SOFTWARE/scripts:/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/conda/envs/DL_MRI_reconstruction/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
-> 2. echo $LD_LIBRARY_PATH: /usr/local/cuda-10.0/targets/x86_64-linux/lib:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.1/lib64::/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/lib
+> 2. echo $LD_LIBRARY_PATH: 
+>
+> /usr/local/cuda-10.0/targets/x86_64-linux/lib:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.1/lib64::/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/lib
 
 Changing these variables (making additions to them) can be done by running e.g. the following commands in the command shell:
-export PATH=/usr/local/cuda-10.1/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH
+
+export PATH=/usr/local/cuda-10.1/bin:$PATH && PATH=/usr/local/cuda-10.2/bin:$PATH
+
+export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH && LD_LIBRARY_PATH=/usr/local/cuda-10.0/targets/x86_64-linux/lib:$LD_LIBRARY_PATH && LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH
