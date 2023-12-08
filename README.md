@@ -25,7 +25,7 @@ The micgpu command only ensures that if you use GPU, this is done on the desired
 
 > 1. echo $PATH: 
 >
-> /opt/ANTs/bin/:/usr/local/fsl/bin:/usr/local/cuda-10.1:/SOFTWARE/scripts:/opt/anaconda/anaconda3/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+> /opt/ANTs/bin:/usr/local/fsl/bin:/usr/local/cuda-10.1:/SOFTWARE/scripts:/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/conda/envs/DL_MRI_reconstruction/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
 > 2. echo $LD_LIBRARY_PATH: 
 >
@@ -33,6 +33,6 @@ The micgpu command only ensures that if you use GPU, this is done on the desired
 
 Changing these variables (making additions to them) can be done by running e.g. the following commands in the command shell:
 
-export PATH=/opt/ANTs/bin/:/usr/local/fsl/bin:/usr/local/cuda-10.1:/SOFTWARE/scripts:/opt/anaconda/anaconda3/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+export PATH=/opt/ANTs/bin:/usr/local/fsl/bin:/usr/local/cuda-10.1:/SOFTWARE/scripts:/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/conda/envs/DL_MRI_reconstruction/bin:/opt/anaconda/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
 export LD_LIBRARY_PATH=/usr/local/cuda-10.1/targets/x86_64-linux/lib
