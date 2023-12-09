@@ -45,3 +45,4 @@ chmod -R 600 /home/salam/.local/share/jupyter/runtime/
 
 jupyter notebook --no-browser --port $port --notebook-dir $root_dir --ip 0.0.0.0
 
+
