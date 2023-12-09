@@ -3,7 +3,7 @@
 import resource
 
 # Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number than 40GB
-memory_limit = 100_000_000_000
+memory_limit = 80_000_000_000
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
 
@@ -323,4 +323,5 @@ model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Mod
 
 
 print("Done. Saved model to disk.")
+
 

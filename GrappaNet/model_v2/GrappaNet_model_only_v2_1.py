@@ -3,7 +3,7 @@
 import resource
 
 # Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number than 40GB
-memory_limit = 100_000_000_000
+memory_limit = 80_000_000_000
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
 
@@ -38,7 +38,7 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 model = None
 crop_size = (32,640,320)
-batch_size = 8
+#batch_size = 8
 # This batch size has unit 'number of slices', not 'number of files'
 
 
@@ -115,8 +115,8 @@ validation_dataset = tf.data.Dataset.from_generator(generator=validation_generat
 
 ## Add pre-fetch
 
-training_dataset = training_dataset.prefetch(buffer_size=batch_size)
-validation_dataset = validation_dataset.prefetch(buffer_size=batch_size)
+#training_dataset = training_dataset.prefetch(buffer_size=batch_size)
+#validation_dataset = validation_dataset.prefetch(buffer_size=batch_size)
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -288,7 +288,8 @@ strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
     epochs = 1  # In the original paper, however, 20 epochs were used
-    batch_size = batch_size  # This batch size has unit 'number of slices', not 'number of files'
+    epoch_steps = len(file_paths_train)
+    validation_epoch_steps = len(file_paths_val)
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
     model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics])
@@ -297,9 +298,10 @@ with strategy.scope():
 
 history = model.fit(training_dataset,
             epochs=epochs,
-            batch_size=batch_size,
+            steps_per_epoch=epoch_steps,
             shuffle=False,
             validation_data=validation_dataset,
+            validation_steps=validation_epoch_steps,
             callbacks=get_callbacks(model_name,0.6,10,1),
             max_queue_size=32,
             workers=100,
@@ -327,4 +329,5 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+
 
