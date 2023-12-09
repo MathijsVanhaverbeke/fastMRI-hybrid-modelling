@@ -6,7 +6,7 @@
 import resource
 
 # Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (150_000_000_000, 150_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -53,9 +53,10 @@ files_16_640_320 = clustered_data_2[(640,320)]
 training_files = files_16_640_320
 
 # Select the first 70 scans
-training_files = training_files[:70]
+#training_files = training_files[:70]
+training_files = training_files[:3]
 
-crop_size = (16,640,320)
+crop_size = (12,640,320)
 
 
 print('All variables are loaded. Starting training dataset construction and initial GRAPPA image reconstructions of the undersampled data...')
@@ -150,15 +151,16 @@ for mri_f in sorted(training_files):
                     sub_img[chindx,:,:] = abs(fft.fftshift(fft.ifft2(subsampled_tmp[iCh,:,:])))
                     ref_img[chindx,:,:] = abs(fft.fftshift(fft.ifft2(k[slices,iCh,:,:])))
                     chindx = chindx+1
-                X_train.append(list(comp_img(sub_img)))
-                Y_train.append(list(comp_img(ref_img)))
+                X_train.append(list(comp_img(sub_img,crop_size)))
+                Y_train.append(list(comp_img(ref_img,crop_size)))
             print(cnt,filename,sequence,nSL,nCh,nFE,nPE,sub_img.shape,"ACS region indices: ",start,end,"Processing time: ", time.time()-ts)
             cnt += 1
             gc.collect()
             time.sleep(1)
 X_train_arr = np.array(X_train).astype(np.float32)
 Y_train_arr = np.array(Y_train).astype(np.float32)
-print("X_train and Y_train constructed with shapes: ",X_train_arr.shape,Y_train_arr.shape)   
+print("X_train and Y_train constructed with shapes: ",X_train_arr.shape,Y_train_arr.shape)
+minimum_slices = X_train_arr.shape[0]
 
 
 print('Done. Visualizing an example of the processed data to check if everything is ok...')
@@ -173,6 +175,7 @@ Y_rss = np.sqrt(np.sum(np.square(Y_train_arr),axis=1))
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,8))
 ax[0].imshow(X_train_arr[indx,0,:,:],cmap='gray')
 ax[1].imshow(Y_rss[indx,:,:],cmap='gray')
+plt.show()
 
 
 print('Done. Saving results for other runs in the future...')
@@ -276,6 +279,36 @@ for k in range(X_train_arr.shape[0]):
 
 X_train_arr = np.array(augmented_image_X)
 Y_train_arr = np.array(augmented_image_Y)
+
+def select_slices(array, slice_index, total_slices):
+    # Ensure the array has 4 dimensions
+    if array.ndim != 4:
+        raise ValueError("Input array must be 4-dimensional")
+        
+    # Ensure total_slices is not greater than the size of the first dimension
+    if total_slices > array.shape[0]:
+        raise ValueError("Total slices must be less than or equal to the size of the first dimension of the input array")
+    
+    # All slices before slice_index are definitely kept
+    slices_to_keep = array[:slice_index, :, :, :]
+    
+    # Only select slices beyond slice_index if total_slices is greater than slice_index
+    if total_slices > slice_index:
+        slices_to_select = array[slice_index:, :, :, :]
+        
+        # Randomly select the remaining slices to reach total_slices
+        indices = np.random.choice(slices_to_select.shape[0], total_slices - slice_index, replace=False)
+        slices_to_add = slices_to_select[indices, :, :, :]
+        
+        # Concatenate the slices to keep and the newly selected slices
+        output_array = np.concatenate((slices_to_keep, slices_to_add), axis=0)
+    else:
+        output_array = slices_to_keep
+
+    return output_array
+
+X_train_arr = select_slices(X_train_arr, minimum_slices, 100)
+Y_train_arr = select_slices(Y_train_arr, minimum_slices, 100)
 print("New dimensions of X_train and Y_train: ",X_train_arr.shape,Y_train_arr.shape) 
 
 
@@ -325,6 +358,10 @@ y_train = Y_rss[0:int(X_train_arr.shape[0]-X_train_arr.shape[0]*0.1),:,:,:]
 x_test = X_train_arr[int(X_train_arr.shape[0]-X_train_arr.shape[0]*0.1):,:,:,:]
 y_test = Y_rss[int(X_train_arr.shape[0]-X_train_arr.shape[0]*0.1):,:,:,:]
 
+del X_train
+del Y_train
+del augmented_image_X
+del augmented_image_Y
 del X_train_arr
 del Y_train_arr
 del Y_rss
@@ -355,7 +392,7 @@ loss_weights = [1.0, 0.0001, 0.000001, 0]
 selected_layers = ['block1_conv1', 'block2_conv2', 'block3_conv3' ,'block4_conv3']
 selected_layer_weights_content = [0.001, 0.01, 2, 4]
 
-vgg = VGG19(weights='imagenet', include_top=False, input_shape=(crop_size[1],crop_size[2],crop_size[0]))
+vgg = VGG19(weights='imagenet', include_top=False, input_shape=(crop_size[1],crop_size[2],3))
 vgg.trainable = False
 
 outputs = [vgg.get_layer(l).output for l in selected_layers]
@@ -397,7 +434,7 @@ def model_loss_NMSE(y_true, y_pred):
     nmse = tf.sqrt(y_pred-y_true)/(tf.sqrt(y_true)+1e-8)
     return nmse
 
-def conv_block(ip, nfilters,drop_rate):
+def conv_block(ip, nfilters, drop_rate):
     
     layer_top = Conv2D(nfilters, (3,3), padding = "same")(ip)
     layer_top = BatchNormalization()(layer_top)
@@ -413,7 +450,7 @@ def conv_block(ip, nfilters,drop_rate):
     res_model = PReLU()(res_model)
     return res_model
 
-def encoder(inp,nlayers, nbasefilters, drop_rate):
+def encoder(inp, nlayers, nbasefilters, drop_rate):
     
     skip_layers = []
     layers = inp
@@ -428,7 +465,7 @@ def encoder(inp,nlayers, nbasefilters, drop_rate):
     
     return layers, skip_layers
 
-def decoder(inp,nlayers, nbasefilters,skip_layers, drop_rate):
+def decoder(inp, nlayers, nbasefilters,skip_layers, drop_rate):
     
     layers = inp
     for i in range(nlayers):
@@ -445,7 +482,7 @@ def decoder(inp,nlayers, nbasefilters,skip_layers, drop_rate):
         layers=add([layers,skip_layers.pop()])
     return layers
 
-def create_gen(gen_ip, nlayers,nbasefilters,lambda_l, drop_rate):
+def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op,skip_layers = encoder(gen_ip,nlayers, nbasefilters,drop_rate)
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
@@ -453,7 +490,7 @@ def create_gen(gen_ip, nlayers,nbasefilters,lambda_l, drop_rate):
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
 input_layer = Input(shape=input_shape)
-model = create_gen(input_layer,5,32,1,0.01)
+model = create_gen(input_layer,5,32,0.01)
 
 
 print('Done. Training the model...')
@@ -478,12 +515,12 @@ def get_callbacks(model_file, learning_rate_drop=0.7,learning_rate_patience=7, v
 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
-    model = create_gen(input_layer,5,32,1,0.01)
+    model = create_gen(input_layer,5,32,0.01)
     metrics = tf.keras.metrics.RootMeanSquaredError()
     model.compile(loss=model_loss_all, optimizer= Adam(learning_rate=0.0001),metrics=[metrics] )
     history = model.fit(x_train, y_train,
                     epochs=20,  # In their paper, they use 100 epochs
-                    batch_size=4*128,
+                    batch_size=128,
                     shuffle=True,
                     validation_data=(x_test, y_test),
                     callbacks=get_callbacks(model_name,0.6,10,1))
