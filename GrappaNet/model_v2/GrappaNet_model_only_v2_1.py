@@ -21,11 +21,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import gc
-import time
 import tensorflow as tf
-from tensorflow.keras import backend as k
-from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D
 from tensorflow.keras.layers import add, Dropout, Lambda, ReLU
 from tensorflow.keras.layers import UpSampling2D
@@ -73,12 +69,9 @@ def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_ind
         with open(file_path_grappa_p, 'rb') as handle:
             grappa_p = pickle.load(handle)
         
+        print("  Training: "+str(len(grappa_wt)))
+        
         yield ((x_train, grappa_train_indx), y_train)
-
-        del x_train, y_train, grappa_train_indx, grappa_wt, grappa_p
-        time.sleep(1)
-        gc.collect()
-        time.sleep(1)
 
 
 def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
@@ -93,12 +86,9 @@ def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_in
         with open(file_path_grappa_p, 'rb') as handle:
             grappa_p = pickle.load(handle)
 
-        yield ((x_test, grappa_test_indx), y_test)
+        print("  Validation: "+str(len(grappa_wt)))
 
-        del x_test, y_test, grappa_test_indx, grappa_wt, grappa_p
-        time.sleep(1)
-        gc.collect()
-        time.sleep(1)
+        yield ((x_test, grappa_test_indx), y_test)
 
 
 print('Done. Setting up tensorflow structure to process in batches...')
@@ -106,11 +96,11 @@ print('Done. Setting up tensorflow structure to process in batches...')
 
 ## Create a .from_generator() object
 
-training_dataset = tf.data.Dataset.from_generator(generator=train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
-validation_dataset = tf.data.Dataset.from_generator(generator=validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
+#training_dataset = tf.data.Dataset.from_generator(generator=train_generator, args=[file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
+#validation_dataset = tf.data.Dataset.from_generator(generator=validation_generator, args=[file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p], output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((np.float32, np.int64), np.float32))
 
-#training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
-#validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 
 
 ## Add pre-fetch
@@ -287,7 +277,7 @@ def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 1  # In the original paper, however, 20 epochs were used
+    epochs = 20
     epoch_steps = len(file_paths_train)
     validation_epoch_steps = len(file_paths_val)
     model = build_model(input_shape)

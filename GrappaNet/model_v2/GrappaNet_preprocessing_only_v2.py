@@ -203,7 +203,10 @@ for batch in range(num_batches):
 
 print('Preprocessing the last batch, batch '+str(batch_number)+'...')
 
-remaining_files = training_files[num_batches*batch_size:]
+if batch_size == 1:
+    remaining_files = training_files[-1]
+elif batch_size > 1:
+    remaining_files = training_files[num_batches*batch_size:]
 
 
 ## Create training data pairs and estimate GRAPPA kernels
