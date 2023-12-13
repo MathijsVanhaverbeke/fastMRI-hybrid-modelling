@@ -6,7 +6,7 @@
 import resource
 
 # Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (150_000_000_000, 150_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -54,7 +54,7 @@ training_files = files_16_640_320
 
 # Select the first 70 scans
 #training_files = training_files[:70]
-training_files = training_files[:3]
+training_files = training_files[:5]
 
 crop_size = (12,640,320)
 
@@ -307,8 +307,8 @@ def select_slices(array, slice_index, total_slices):
 
     return output_array
 
-X_train_arr = select_slices(X_train_arr, minimum_slices, 100)
-Y_train_arr = select_slices(Y_train_arr, minimum_slices, 100)
+X_train_arr = select_slices(X_train_arr, minimum_slices, 150)
+Y_train_arr = select_slices(Y_train_arr, minimum_slices, 150)
 print("New dimensions of X_train and Y_train: ",X_train_arr.shape,Y_train_arr.shape) 
 
 

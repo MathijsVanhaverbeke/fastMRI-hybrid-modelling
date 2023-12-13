@@ -6,7 +6,7 @@
 import resource
 
 # Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (150_000_000_000, 150_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
