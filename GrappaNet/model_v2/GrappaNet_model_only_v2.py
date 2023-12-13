@@ -1,9 +1,8 @@
-## Set up a resource limiter, such that the script doesn't take up more than a certain amount of RAM (normally 40GB is the limit). In that case, an error will be thrown
+## Set up a resource limiter
 
 import resource
 
-# Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number than 40GB
-memory_limit = 80_000_000_000
+memory_limit = 100_000_000_000
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
 
@@ -12,6 +11,8 @@ print('Resource limit set. Importing libraries...')
 
 ## Import libraries
 
+import os
+import threading
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import apply_kernel_weight
@@ -32,10 +33,13 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth=True
+sess = tf.compat.v1.Session(config=config)
+tf.compat.v1.keras.backend.set_session(sess)
+
 model = None
 crop_size = (32,640,320)
-#batch_size = 8
-# This batch size has unit 'number of slices', not 'number of files'
 
 
 print('Libraries imported. Starting to prepare the dataset...')
@@ -56,39 +60,42 @@ file_paths_grappa_indx_val = sorted(glob.glob(path_to_save_grappa_data+"grappa_v
 file_paths_grappa_wt = sorted(glob.glob(path_to_save_grappa_data+"grappa_wt_batch_*.pickle"))
 file_paths_grappa_p = sorted(glob.glob(path_to_save_grappa_data+"grappa_p_batch_*.pickle"))
 
+lock = threading.Lock()
 
 def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
     global grappa_wt
     global grappa_p
     for file_path_train, file_path_train_GT, file_path_grappa_indx_train, file_path_grappa_wt, file_path_grappa_p in zip (file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
-        x_train = np.load(file_path_train)
-        y_train = np.load(file_path_train_GT)
-        grappa_train_indx = np.load(file_path_grappa_indx_train)
-        with open(file_path_grappa_wt, 'rb') as handle:
-            grappa_wt = pickle.load(handle)
-        with open(file_path_grappa_p, 'rb') as handle:
-            grappa_p = pickle.load(handle)
-        
-        print("  Training: "+str(len(grappa_wt)))
-        
-        yield ((x_train, grappa_train_indx), y_train)
+        with lock:
+            x_train = np.load(file_path_train)
+            y_train = np.load(file_path_train_GT)
+            grappa_train_indx = np.load(file_path_grappa_indx_train)
+            with open(file_path_grappa_wt, 'rb') as handle:
+                grappa_wt = pickle.load(handle)
+            with open(file_path_grappa_p, 'rb') as handle:
+                grappa_p = pickle.load(handle)
+
+            print("   Training batch: "+str(int(os.path.splitext(str(file_path_train))[0].split('_')[-1])))
+            
+            yield ((x_train, grappa_train_indx), y_train)
 
 
 def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
     global grappa_wt
     global grappa_p
     for file_path_val, file_path_val_GT, file_path_grappa_indx_val, file_path_grappa_wt, file_path_grappa_p in zip(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
-        x_test = np.load(file_path_val)
-        y_test = np.load(file_path_val_GT)
-        grappa_test_indx = np.load(file_path_grappa_indx_val)
-        with open(file_path_grappa_wt, 'rb') as handle:
-            grappa_wt = pickle.load(handle)
-        with open(file_path_grappa_p, 'rb') as handle:
-            grappa_p = pickle.load(handle)
+        with lock:
+            x_test = np.load(file_path_val)
+            y_test = np.load(file_path_val_GT)
+            grappa_test_indx = np.load(file_path_grappa_indx_val)
+            with open(file_path_grappa_wt, 'rb') as handle:
+                grappa_wt = pickle.load(handle)
+            with open(file_path_grappa_p, 'rb') as handle:
+                grappa_p = pickle.load(handle)
+        
+            print("   Validation batch: "+str(int(os.path.splitext(str(file_path_val))[0].split('_')[-1])))
 
-        print("  Validation: "+str(len(grappa_wt)))
-
-        yield ((x_test, grappa_test_indx), y_test)
+            yield ((x_test, grappa_test_indx), y_test)
 
 
 print('Done. Setting up tensorflow structure to process in batches...')
@@ -101,12 +108,6 @@ print('Done. Setting up tensorflow structure to process in batches...')
 
 training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
-
-
-## Add pre-fetch
-
-#training_dataset = training_dataset.prefetch(buffer_size=batch_size)
-#validation_dataset = validation_dataset.prefetch(buffer_size=batch_size)
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -262,7 +263,7 @@ print('Done. Training the model...')
 
 ## Train the model
 
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_GrappaNet.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_GrappaNet_trained_in_batches_GPU.h5"
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
@@ -298,7 +299,7 @@ history = model.fit(training_dataset,
             use_multiprocessing=False)
 
 
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet_trained_in_batches_GPU.h5")
 
 
 print("Done. Saved model to disk.")
