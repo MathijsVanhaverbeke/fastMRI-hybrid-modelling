@@ -2,8 +2,7 @@
 
 import resource
 
-# Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -67,7 +66,7 @@ grappa_wt = []
 grappa_p = []
 
 # Optional:
-#training_files = training_files[:25]   # Should result in a dataset comprised of around 400 multi-coil slices
+training_files = training_files[:70]
 
 for mri_f in sorted(training_files):
     filename = os.path.basename(mri_f)
@@ -112,8 +111,8 @@ import pickle
 Y_train = np.array(Y_train).astype(np.float32)
 X_train = np.array(X_train).astype(np.float32)
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri/'
-path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once/'
+path_to_save_grappa_data = path_to_save_mri_data
 
 np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils.npy", X_train)
 np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils.npy", Y_train)
@@ -177,7 +176,7 @@ print('Done. Visualizing an example of the processed data to check if everything
 ## Visualize an example of the processed data
 
 # Slice
-indx = 10
+indx = 3
 ref_img = abs(fft.fftshift(fft.ifft2(x_train[indx,:,:,:])))
 
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,10))
@@ -302,15 +301,15 @@ def aux_Grappa_layer(tensor1, tensor2):
     t2 = tensor2.numpy()
 
     x_train_cmplx_target = t2[:,:,:,0:(crop_size[0]//2)]+1j*t2[:,:,:,(crop_size[0]//2):(crop_size[0])]
-    x_train_cmplx_target = np.transpose(x_train_cmplx_target,(0,3,1,2))
+    x_train_cmplx_target = tf.transpose(x_train_cmplx_target,(0,3,1,2))
     l_grappa = []
     for i in range(x_train_cmplx_target.shape[0]):
         res = apply_kernel_weight(kspace=x_train_cmplx_target[i],calib=None,
                                  kernel_size=(5,5),coil_axis=0,
                                  weights=grappa_wt[int(t1[i][0])],P=grappa_p[int(t1[i][0])])
-        res = np.transpose(res,(1,2,0))
-        out_cmplx_real = tf.convert_to_tensor(res.real)
-        out_cmplx_imag = tf.convert_to_tensor(res.imag)
+        res = tf.transpose(res,(1,2,0))
+        out_cmplx_real = tf.convert_to_tensor(tf.math.real(res))
+        out_cmplx_imag = tf.convert_to_tensor(tf.math.imag(res))
         comb = tf.concat(axis=2,values=[out_cmplx_real, out_cmplx_imag])
         l_grappa.append(comb)
     b_grappa = tf.stack(l_grappa)
@@ -378,7 +377,7 @@ def get_callbacks(model_file, learning_rate_drop=0.7, learning_rate_patience=7, 
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
-    epochs = 1
+    epochs = 20
     batch_size = 8
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
@@ -405,8 +404,6 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
-
-print(history.history)
 
 import pandas as pd
 

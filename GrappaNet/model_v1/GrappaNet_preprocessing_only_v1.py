@@ -2,8 +2,7 @@
 
 import resource
 
-# Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
-resource.setrlimit(resource.RLIMIT_AS, (80_000_000_000, 80_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -63,7 +62,7 @@ grappa_wt = []
 grappa_p = []
 
 # Optional:
-training_files = training_files[:25]   # Should result in a dataset comprised of around 400 multi-coil slices
+training_files = training_files[:70]
 
 for mri_f in sorted(training_files):
     filename = os.path.basename(mri_f)
@@ -108,8 +107,8 @@ import pickle
 Y_train = np.array(Y_train).astype(np.float32)
 X_train = np.array(X_train).astype(np.float32)
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri/'
-path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once/'
+path_to_save_grappa_data = path_to_save_mri_data
 
 np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils.npy", X_train)
 np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils.npy", Y_train)

@@ -2,8 +2,7 @@
 
 import resource
 
-memory_limit = 100_000_000_000
-resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -74,8 +73,6 @@ def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_ind
                 grappa_wt = pickle.load(handle)
             with open(file_path_grappa_p, 'rb') as handle:
                 grappa_p = pickle.load(handle)
-
-            print("   Training batch: "+str(int(os.path.splitext(str(file_path_train))[0].split('_')[-1])))
             
             yield ((x_train, grappa_train_indx), y_train)
 
@@ -92,8 +89,6 @@ def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_in
                 grappa_wt = pickle.load(handle)
             with open(file_path_grappa_p, 'rb') as handle:
                 grappa_p = pickle.load(handle)
-        
-            print("   Validation batch: "+str(int(os.path.splitext(str(file_path_val))[0].split('_')[-1])))
 
             yield ((x_test, grappa_test_indx), y_test)
 
@@ -108,6 +103,9 @@ print('Done. Setting up tensorflow structure to process in batches...')
 
 training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+
+training_dataset = training_dataset.repeat()
+validation_dataset = validation_dataset.repeat()
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -206,15 +204,15 @@ def aux_Grappa_layer(tensor1, tensor2):
     t2 = tensor2.numpy()
 
     x_train_cmplx_target = t2[:,:,:,0:(crop_size[0]//2)]+1j*t2[:,:,:,(crop_size[0]//2):(crop_size[0])]
-    x_train_cmplx_target = np.transpose(x_train_cmplx_target,(0,3,1,2))
+    x_train_cmplx_target = tf.transpose(x_train_cmplx_target,(0,3,1,2))
     l_grappa = []
     for i in range(x_train_cmplx_target.shape[0]):
         res = apply_kernel_weight(kspace=x_train_cmplx_target[i],calib=None,
                                  kernel_size=(5,5),coil_axis=0,
                                  weights=grappa_wt[int(t1[i][0])],P=grappa_p[int(t1[i][0])])
-        res = np.transpose(res,(1,2,0))
-        out_cmplx_real = tf.convert_to_tensor(res.real)
-        out_cmplx_imag = tf.convert_to_tensor(res.imag)
+        res = tf.transpose(res,(1,2,0))
+        out_cmplx_real = tf.convert_to_tensor(tf.math.real(res))
+        out_cmplx_imag = tf.convert_to_tensor(tf.math.imag(res))
         comb = tf.concat(axis=2,values=[out_cmplx_real, out_cmplx_imag])
         l_grappa.append(comb)
     b_grappa = tf.stack(l_grappa)
@@ -307,8 +305,6 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
-
-print(history.history)
 
 pd.DataFrame(history.history).plot(figsize=(8,5))
 plt.show()
