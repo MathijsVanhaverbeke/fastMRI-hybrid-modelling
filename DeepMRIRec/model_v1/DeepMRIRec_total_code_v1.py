@@ -5,7 +5,6 @@
 
 import resource
 
-# Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
 resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
@@ -52,8 +51,7 @@ clustered_data_2 = clustered_data_2.item()
 files_16_640_320 = clustered_data_2[(640,320)]
 training_files = files_16_640_320
 
-# Select the first 70 scans
-#training_files = training_files[:70]
+# Select the first 5 scans
 training_files = training_files[:5]
 
 crop_size = (12,640,320)
@@ -169,7 +167,7 @@ print('Done. Visualizing an example of the processed data to check if everything
 ## Visualize an example of the processed data
 
 # Slice
-indx = 10
+indx = 3
 Y_rss = np.sqrt(np.sum(np.square(Y_train_arr),axis=1))
 
 fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,8))
@@ -387,7 +385,7 @@ from tensorflow.keras.applications.vgg19 import preprocess_input
 
 model = None
 kernel_size = (3,3)
-loss_weights = [1.0, 0.0001, 0.000001, 0]
+loss_weights = [1.0, 0.0001, 0.000001]
 
 selected_layers = ['block1_conv1', 'block2_conv2', 'block3_conv3' ,'block4_conv3']
 selected_layer_weights_content = [0.001, 0.01, 2, 4]
@@ -412,6 +410,7 @@ def compute_loss(A, B):
 
 def model_loss_all(y_true, y_pred):
     global vgg_model
+    global loss_weights
     
     ssim_loss = 1- tf.math.abs(tf.reduce_mean(tf.image.ssim(img1=y_true,img2=y_pred,max_val=1.0,filter_size=3,filter_sigma=0.1)))
     pixel_loss = tf.reduce_mean(tf.math.abs(y_true-y_pred))
@@ -533,8 +532,6 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
-
-print(history.history)
 
 import pandas as pd
 

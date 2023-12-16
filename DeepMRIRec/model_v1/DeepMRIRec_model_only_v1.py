@@ -5,7 +5,6 @@
 
 import resource
 
-# Because micsd01 has very few jobs running currently, we can increase the RAM limit to a higher number than 40GB
 resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
@@ -16,7 +15,6 @@ print('Resource limit set. Importing libraries...')
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pygrappa import grappa, mdgrappa
 import gc
 import time
 
@@ -94,7 +92,7 @@ from tensorflow.keras.applications.vgg19 import preprocess_input
 
 model = None
 kernel_size = (3,3)
-loss_weights = [1.0, 0.0001, 0.000001, 0]
+loss_weights = [1.0, 0.0001, 0.000001]
 
 selected_layers = ['block1_conv1', 'block2_conv2', 'block3_conv3' ,'block4_conv3']
 selected_layer_weights_content = [0.001, 0.01, 2, 4]
@@ -119,6 +117,7 @@ def compute_loss(A, B):
 
 def model_loss_all(y_true, y_pred):
     global vgg_model
+    global loss_weights
     
     ssim_loss = 1- tf.math.abs(tf.reduce_mean(tf.image.ssim(img1=y_true,img2=y_pred,max_val=1.0,filter_size=3,filter_sigma=0.1)))
     pixel_loss = tf.reduce_mean(tf.math.abs(y_true-y_pred))
@@ -240,8 +239,6 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
-
-print(history.history)
 
 import pandas as pd
 

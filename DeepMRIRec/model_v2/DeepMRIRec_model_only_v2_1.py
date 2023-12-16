@@ -5,9 +5,7 @@
 
 import resource
 
-# Because micsd01 has very jobs running currently, we can increase the RAM limit to a higher number than 40GB
-memory_limit = 80_000_000_000
-resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -70,6 +68,9 @@ print('Done. Setting up tensorflow structure to process in batches...')
 training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT), output_shapes=((None, None, None, None), (None, None, None, 1)), output_types=(tf.float32, tf.float32))
 validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT), output_shapes=((None, None, None, None), (None, None, None, 1)), output_types=(tf.float32, tf.float32))
 
+training_dataset = training_dataset.repeat()
+validation_dataset = validation_dataset.repeat()
+
 
 print('Done. Building the DeepMRIRec model architecture...')
 
@@ -78,7 +79,7 @@ print('Done. Building the DeepMRIRec model architecture...')
 
 model = None
 kernel_size = (3,3)
-loss_weights = [1.0, 0.0001, 0.000001, 0]
+loss_weights = [1.0, 0.0001, 0.000001]
 
 selected_layers = ['block1_conv1', 'block2_conv2', 'block3_conv3' ,'block4_conv3']
 selected_layer_weights_content = [0.001, 0.01, 2, 4]
@@ -103,6 +104,7 @@ def compute_loss(A, B):
 
 def model_loss_all(y_true, y_pred):
     global vgg_model
+    global loss_weights
     
     ssim_loss = 1- tf.math.abs(tf.reduce_mean(tf.image.ssim(img1=y_true,img2=y_pred,max_val=1.0,filter_size=3,filter_sigma=0.1)))
     pixel_loss = tf.reduce_mean(tf.math.abs(y_true-y_pred))
@@ -212,7 +214,7 @@ with strategy.scope():
 
 
 history = model.fit(training_dataset,
-            epochs=20,
+            epochs=20,  # In their paper, they use 100 epochs
             steps_per_epoch=(len(file_paths_train)//5),
             shuffle=True,
             validation_data=validation_dataset,
@@ -228,8 +230,6 @@ print("Done. Saved model to disk.")
 
 print('Plotting loss function training curve')
 
-
-print(history.history)
 
 pd.DataFrame(history.history).plot(figsize=(8,5))
 plt.show()
