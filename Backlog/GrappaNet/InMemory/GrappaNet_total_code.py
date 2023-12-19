@@ -111,7 +111,7 @@ import pickle
 Y_train = np.array(Y_train).astype(np.float32)
 X_train = np.array(X_train).astype(np.float32)
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/fully_processed_at_once/'
 path_to_save_grappa_data = path_to_save_mri_data
 
 np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils.npy", X_train)
@@ -169,7 +169,6 @@ print('Done. Visualizing an example of the processed data to check if everything
 
 ## NOTE TO SELF: Wouldn't it make more sense to perform the data saving step here if we want to work with batches of data during the model training?
 ## Then we would save batches of training data inputs, training data targets and validation data inputs, validation data targets during each loop
-## See Notion
 
 
 
@@ -192,7 +191,7 @@ print('Done. Building the GrappaNet model architecture...')
 ## Build the model
 
 # WARNING: TAKE INTO ACCOUNT THAT TRAINING THE MODEL ITSELF ALSO TAKES UP SUBSTANTIAL AMOUNTS OF RAM
-# If not enough RAM margin is foreseen, an std::bad_alloc() error will be thrown
+# If not enough RAM margin is foreseen, an std::bad_alloc() or OOM error will be thrown
 
 import gc
 model = None
@@ -301,15 +300,15 @@ def aux_Grappa_layer(tensor1, tensor2):
     t2 = tensor2.numpy()
 
     x_train_cmplx_target = t2[:,:,:,0:(crop_size[0]//2)]+1j*t2[:,:,:,(crop_size[0]//2):(crop_size[0])]
-    x_train_cmplx_target = tf.transpose(x_train_cmplx_target,(0,3,1,2))
+    x_train_cmplx_target = np.transpose(x_train_cmplx_target,(0,3,1,2))
     l_grappa = []
     for i in range(x_train_cmplx_target.shape[0]):
         res = apply_kernel_weight(kspace=x_train_cmplx_target[i],calib=None,
                                  kernel_size=(5,5),coil_axis=0,
                                  weights=grappa_wt[int(t1[i][0])],P=grappa_p[int(t1[i][0])])
-        res = tf.transpose(res,(1,2,0))
-        out_cmplx_real = tf.convert_to_tensor(tf.math.real(res))
-        out_cmplx_imag = tf.convert_to_tensor(tf.math.imag(res))
+        res = np.transpose(res,(1,2,0))
+        out_cmplx_real = tf.convert_to_tensor(res.real)
+        out_cmplx_imag = tf.convert_to_tensor(res.imag)
         comb = tf.concat(axis=2,values=[out_cmplx_real, out_cmplx_imag])
         l_grappa.append(comb)
     b_grappa = tf.stack(l_grappa)
@@ -361,7 +360,7 @@ print('Done. Training the model...')
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_GrappaNet.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/best_model_GrappaNet_trained_at_once.h5"
 
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
@@ -396,7 +395,7 @@ history = model.fit([x_train, grappa_train_indx], y_train,
             use_multiprocessing=False)
 
 
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/final_model_GrappaNet_trained_at_once.h5")
 
 
 print("Done. Saved model to disk.")
@@ -405,10 +404,9 @@ print("Done. Saved model to disk.")
 print('Plotting loss function training curve')
 
 
-import pandas as pd
-
-pd.DataFrame(history.history).plot(figsize=(8,5))
-plt.show()
+#import pandas as pd
+#pd.DataFrame(history.history).plot(figsize=(8,5))
+#plt.show()
 
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])

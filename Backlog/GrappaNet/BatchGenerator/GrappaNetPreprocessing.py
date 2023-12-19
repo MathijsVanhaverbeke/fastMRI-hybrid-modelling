@@ -159,8 +159,8 @@ for batch in range(num_batches):
 
     ## Save the results
 
-    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri/'
-    path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
+    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/mri/'
+    path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/grappa/'
 
     np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_train)
     np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_train)
@@ -298,8 +298,8 @@ print('Done. Saving results...')
 
 ## Save the results
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri/'
-path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/grappa/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/mri/'
+path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/grappa/'
 
 np.save(path_to_save_mri_data+"training_data_GrappaNet_16_coils_batch_{}.npy".format(batch_number), x_train)
 np.save(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils_batch_{}.npy".format(batch_number), y_train)

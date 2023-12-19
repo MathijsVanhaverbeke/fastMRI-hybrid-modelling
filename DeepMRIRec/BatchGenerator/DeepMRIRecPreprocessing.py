@@ -5,7 +5,7 @@
 
 import resource
 
-resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (100_000_000_000, 100_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -20,7 +20,7 @@ import h5py
 import matplotlib.pyplot as plt
 from numpy import fft 
 import os
-from pygrappa import grappa, mdgrappa
+from pygrappa import grappa
 import gc
 import time 
 from pathlib import Path

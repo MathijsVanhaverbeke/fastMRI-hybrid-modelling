@@ -1,4 +1,4 @@
-## Set up a resource limiter, such that the script doesn't take up more than a certain amount of RAM (normally 40GB is the limit). In that case, an error will be thrown
+## Set up a resource limiter
 
 import resource
 
@@ -10,89 +10,95 @@ print('Resource limit set. Importing libraries...')
 
 ## Import libraries
 
+import threading
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy import fft 
 from utils import apply_kernel_weight
 import math
-import gc
+import glob
+import pickle
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D
+from tensorflow.keras.layers import add, Dropout, Lambda, ReLU
+from tensorflow.keras.layers import UpSampling2D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam, RMSprop
+import tensorflow_addons as tfa
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth=True
+sess = tf.compat.v1.Session(config=config)
+tf.compat.v1.keras.backend.set_session(sess)
+
+model = None
 crop_size = (32,640,320)
 
 
-print('Libraries imported. Starting to load the already preprocessed dataset...')
+print('Libraries imported. Starting to prepare the dataset...')
 
 
-## Load the already preprocessed dataset
+## Prepare dataset
 
-import pickle
-
-path_of_saved_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once/'
-path_of_saved_grappa_data = path_of_saved_mri_data
-
-X_train = np.load(path_of_saved_mri_data+"training_data_GrappaNet_16_coils.npy")
-Y_train = np.load(path_of_saved_mri_data+"training_data_GT_GrappaNet_16_coils.npy")
-
-with open(path_of_saved_grappa_data+'grappa_wt.pickle', 'rb') as handle:
-    grappa_wt = pickle.load(handle)
-
-with open(path_of_saved_grappa_data+'grappa_p.pickle', 'rb') as handle:
-    grappa_p = pickle.load(handle)
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/mri/'
+path_to_save_grappa_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/grappa/'
 
 
-print('Done. Calculating RSS images as references for the loss function...')
+file_paths_train = sorted(glob.glob(path_to_save_mri_data+"training_data_GrappaNet_16_coils_batch_*.npy"))
+file_paths_train_GT = sorted(glob.glob(path_to_save_mri_data+"training_data_GT_GrappaNet_16_coils_batch_*.npy"))
+file_paths_val = sorted(glob.glob(path_to_save_mri_data+"validation_data_GrappaNet_16_coils_batch_*.npy"))
+file_paths_val_GT = sorted(glob.glob(path_to_save_mri_data+"validation_data_GT_GrappaNet_16_coils_batch_*.npy"))
+file_paths_grappa_indx_train = sorted(glob.glob(path_to_save_grappa_data+"grappa_train_indx_GrappaNet_16_coils_batch_*.npy"))
+file_paths_grappa_indx_val = sorted(glob.glob(path_to_save_grappa_data+"grappa_validation_indx_GrappaNet_16_coils_batch_*.npy"))
+file_paths_grappa_wt = sorted(glob.glob(path_to_save_grappa_data+"grappa_wt_batch_*.pickle"))
+file_paths_grappa_p = sorted(glob.glob(path_to_save_grappa_data+"grappa_p_batch_*.pickle"))
+
+lock = threading.Lock()
+
+def train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
+    global grappa_wt
+    global grappa_p
+    for file_path_train, file_path_train_GT, file_path_grappa_indx_train, file_path_grappa_wt, file_path_grappa_p in zip (file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p):
+        with lock:
+            x_train = np.load(file_path_train)
+            y_train = np.load(file_path_train_GT)
+            grappa_train_indx = np.load(file_path_grappa_indx_train)
+            with open(file_path_grappa_wt, 'rb') as handle:
+                grappa_wt = pickle.load(handle)
+            with open(file_path_grappa_p, 'rb') as handle:
+                grappa_p = pickle.load(handle)
+            
+            yield ((x_train, grappa_train_indx), y_train)
 
 
-## Calculate RSS images that will be used as references for the loss function
+def validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
+    global grappa_wt
+    global grappa_p
+    for file_path_val, file_path_val_GT, file_path_grappa_indx_val, file_path_grappa_wt, file_path_grappa_p in zip(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p):
+        with lock:
+            x_test = np.load(file_path_val)
+            y_test = np.load(file_path_val_GT)
+            grappa_test_indx = np.load(file_path_grappa_indx_val)
+            with open(file_path_grappa_wt, 'rb') as handle:
+                grappa_wt = pickle.load(handle)
+            with open(file_path_grappa_p, 'rb') as handle:
+                grappa_p = pickle.load(handle)
 
-X_train = np.transpose(X_train,(0,2,3,1))
-Y_rss = np.sqrt(np.sum(np.square(Y_train),axis=1))
-Y_rss = Y_rss.astype(np.float32)
-print(X_train.shape,Y_rss.shape)
-
-
-print('Done. Normalizing the data...')
-
-
-## Normalize the data
-
-dims = X_train.shape
-for i in range(dims[0]):
-    for j in range(dims[3]):
-        X_train[i,:,:,j] = X_train[i,:,:,j]/((np.max(X_train[i,:,:,j])-np.min(X_train[i,:,:,j]))+1e-10)
-
-for i in range(dims[0]):
-    Y_rss[i,:,:] = Y_rss[i,:,:]/((np.max(Y_rss[i,:,:])-np.min(Y_rss[i,:,:]))+1e-10)
+            yield ((x_test, grappa_test_indx), y_test)
 
 
-print('Done. Performing a datasplit...')
+print('Done. Setting up tensorflow structure to process in batches...')
 
 
-## Create a dataset split 90-10 training-validation
+## Create a .from_generator() object
 
-x_train = X_train[0:int(X_train.shape[0]-X_train.shape[0]*0.1),:,:,:]
-y_train = Y_rss[0:int(X_train.shape[0]-X_train.shape[0]*0.1),:,:]
-x_test = X_train[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:,:]
-y_test = Y_rss[int(X_train.shape[0]-X_train.shape[0]*0.1):,:,:]
-y_test = np.reshape(y_test, (y_test.shape[0],crop_size[1],crop_size[2]))
-grappa_train_indx = np.array(range(0,int(X_train.shape[0]-X_train.shape[0]*0.1)),dtype=int)
-grappa_test_indx = np.array(range(int(X_train.shape[0]-X_train.shape[0]*0.1),X_train.shape[0]),dtype=int)
-
-
-print('Done. Visualizing an example of the processed data to check if everything is ok...')
-
-
-## Visualize an example of the processed data
-
-# Slice
-indx = 3
-ref_img = abs(fft.fftshift(fft.ifft2(x_train[indx,:,:,:])))
-
-fix,ax = plt.subplots(nrows=1,ncols=2,figsize=(6,10))
-ax[0].imshow(x_train[indx,:,:,0],cmap='gray')
-ax[1].imshow(Y_rss[indx,:,:],cmap='gray')
-
-plt.show()
+training_dataset = tf.data.Dataset.from_generator(generator=lambda: train_generator(file_paths_train, file_paths_train_GT, file_paths_grappa_indx_train, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
+validation_dataset = tf.data.Dataset.from_generator(generator=lambda: validation_generator(file_paths_val, file_paths_val_GT, file_paths_grappa_indx_val, file_paths_grappa_wt, file_paths_grappa_p), output_shapes=(((None, None, None, None), (None,)), (None, None, None)), output_types=((tf.float32, tf.int64), tf.float32))
 
 
 print('Done. Building the GrappaNet model architecture...')
@@ -100,23 +106,7 @@ print('Done. Building the GrappaNet model architecture...')
 
 ## Build the model
 
-import gc
-model = None
-gc.collect()
-
-import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D
-from tensorflow.keras.layers import add, Dropout, Lambda, ReLU
-from tensorflow.keras.layers import UpSampling2D
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam, RMSprop
-import tensorflow_addons as tfa
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
 lamda = 0.001
-
 
 @tf.function
 def model_loss_ssim(y_true, y_pred):
@@ -264,11 +254,7 @@ print('Done. Training the model...')
 
 ## Train the model
 
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
-
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_GrappaNet.h5"
-
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/best_model_GrappaNet_trained_in_batches_CPU.h5"
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
@@ -284,25 +270,23 @@ strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     input_shape = (crop_size[1],crop_size[2],crop_size[0])
     epochs = 20
-    batch_size = 8
     model = build_model(input_shape)
     metrics = tf.keras.metrics.RootMeanSquaredError()
     model.compile(loss=model_loss_ssim, optimizer=Adam(learning_rate=0.0003), metrics=[metrics])
     #model.compile(loss=model_loss_ssim, optimizer=RMSprop(learning_rate=0.0003), metrics=[metrics])
 
 
-history = model.fit([x_train, grappa_train_indx], y_train,
+history = model.fit(training_dataset,
             epochs=epochs,
-            batch_size=batch_size,
             shuffle=False,
-            validation_data=([x_test, grappa_test_indx], y_test),
+            validation_data=validation_dataset,
             callbacks=get_callbacks(model_name,0.6,10,1),
             max_queue_size=32,
             workers=100,
             use_multiprocessing=False)
 
 
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_GrappaNet.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/final_model_GrappaNet_trained_in_batches_CPU.h5")
 
 
 print("Done. Saved model to disk.")
@@ -311,10 +295,8 @@ print("Done. Saved model to disk.")
 print('Plotting loss function training curve')
 
 
-import pandas as pd
-
-pd.DataFrame(history.history).plot(figsize=(8,5))
-plt.show()
+#pd.DataFrame(history.history).plot(figsize=(8,5))
+#plt.show()
 
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])

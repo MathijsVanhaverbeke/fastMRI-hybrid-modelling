@@ -20,7 +20,7 @@ import h5py
 import matplotlib.pyplot as plt
 from numpy import fft 
 import os
-from pygrappa import grappa, mdgrappa
+from pygrappa import grappa
 import gc
 import time 
 from pathlib import Path
@@ -181,7 +181,7 @@ print('Done. Saving results for other runs in the future...')
 
 ## Save the results as the previous code can run for a long time
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once_augmented/pre_augmentation/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/fully_processed_at_once_augmented/pre_augmentation/'
 
 np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils.npy", X_train_arr)
 np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils.npy", Y_train_arr)
@@ -315,7 +315,7 @@ print("Done. Saving results for other runs in the future...")
 
 ## Save the results as the previous code can run for a long time
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/fully_processed_at_once_augmented/post_augmentation/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/fully_processed_at_once_augmented/post_augmentation/'
 
 np.save(path_to_save_mri_data+"augmented_training_data_DeepMRIRec_16_coils.npy", X_train_arr)
 np.save(path_to_save_mri_data+"augmented_training_data_GT_DeepMRIRec_16_coils.npy", Y_train_arr)
@@ -474,8 +474,7 @@ def decoder(inp, nlayers, nbasefilters,skip_layers, drop_rate):
         #layers=Attention()([layers,layers])
         #mul_layer = MultiHeadAttention(num_heads=2, key_dim=2, attention_axes=(1,2, 3))
         #layers=mul_layer(layers, layers)
-        
-        
+
         #layers=UpSampling2D((2,2))(layers)
         layers=Conv2DTranspose(kernel_size=(2,2),filters=nbasefilters*(2**(nlayers-1-i)),strides=(2,2), padding='same')(layers)
         layers=add([layers,skip_layers.pop()])
@@ -500,7 +499,7 @@ print('Done. Training the model...')
 import math
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/best_model_DeepMRIRec.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/best_model_DeepMRIRec.h5"
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
@@ -524,7 +523,7 @@ with strategy.scope():
                     validation_data=(x_test, y_test),
                     callbacks=get_callbacks(model_name,0.6,10,1))
 
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/final_model_DeepMRIRec.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/Backlog/final_model_DeepMRIRec.h5")
 
 
 print("Done. Saved model to disk.")
@@ -533,10 +532,9 @@ print("Done. Saved model to disk.")
 print('Plotting loss function training curve')
 
 
-import pandas as pd
-
-pd.DataFrame(history.history).plot(figsize=(8,5))
-plt.show()
+#import pandas as pd
+#pd.DataFrame(history.history).plot(figsize=(8,5))
+#plt.show()
 
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
@@ -545,4 +543,5 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+
 

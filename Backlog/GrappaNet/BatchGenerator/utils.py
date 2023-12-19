@@ -79,7 +79,6 @@ def estimate_mdgrappa_kernel(
         P[p0.tobytes()].append(tuple(idx))
     P = {k: np.array(v).T for k, v in P.items()}
 
-
     # We need all overlapping patches from calibration data
     A = view_as_windows(
         calib,
@@ -143,7 +142,6 @@ def apply_kernel_weight(
         weights=None,
         P=None):
   
-
     # coils to the back
     kspace = np.moveaxis(kspace, coil_axis, -1)
     nc = kspace.shape[-1]
@@ -154,7 +152,6 @@ def apply_kernel_weight(
     assert len(kernel_size) == kspace.ndim-1, (
         'kernel_size must have %d entries' % (kspace.ndim-1))
 
-   
     # Pad the arrays
     pads = [int(k/2) for k in kernel_size]
     adjs = [np.mod(k, 2) for k in kernel_size]
@@ -175,7 +172,6 @@ def apply_kernel_weight(
         recon[np.ravel_multi_index(holes, mask.shape)] = np.einsum(
             'fi,ij->fj', S[:holes.shape[1], :np0], Ws0)
 
-    
     for ii, (key, holes) in enumerate(P.items()):
         p0 = np.frombuffer(key, dtype=bool)
         np0 = weights[key].shape[0]
