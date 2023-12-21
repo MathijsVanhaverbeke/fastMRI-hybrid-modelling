@@ -37,7 +37,7 @@ print('Libraries imported. Starting to prepare the dataset...')
 
 ## Prepare dataset
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/mri_augmented/'
 
 
 file_paths_train = sorted(glob.glob(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_*.npy"))

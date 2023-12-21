@@ -60,7 +60,7 @@ print('All variables are loaded. Start preprocessing data in batches...')
 
 
 batch_number = 1
-batch_size = 5
+batch_size = 1
 # Note: batch_size here has unit 'number of files', not 'number of slices'
 
 
@@ -291,8 +291,11 @@ for batch in range(num_batches):
 
     X_train_arr = np.array(augmented_image_X)
     Y_train_arr = np.array(augmented_image_Y)
-    X_train_arr = select_slices(X_train_arr, minimum_slices, 150)
-    Y_train_arr = select_slices(Y_train_arr, minimum_slices, 150)
+    X_train_arr = select_slices(X_train_arr, minimum_slices, 36)
+    Y_train_arr = select_slices(Y_train_arr, minimum_slices, 36)
+    # Optimal training mini-batch size is apparently 32: https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
+    # 90% of 36 = 32
+    # 10% of 36 = 4
 
 
     print('Done. Calculating RSS images as references for the loss function...')
@@ -309,14 +312,26 @@ for batch in range(num_batches):
 
     ## Normalize the data
 
+    def normalize8(I):
+        mn = I.min()
+        mx = I.max()
+
+        mx -= mn
+
+        I = ((I - mn)/mx) * 255.0
+        return np.round(I).astype(np.uint8)
+
     dims = X_train_arr.shape
 
     for i in range(dims[0]):
         for j in range(dims[3]):
-            X_train_arr[i,:,:,j] = X_train_arr[i,:,:,j]/((np.max(X_train_arr[i,:,:,j])-np.min(X_train_arr[i,:,:,j]))+1e-10)
+            X_train_arr[i,:,:,j] = normalize8(X_train_arr[i,:,:,j])
 
     for i in range(dims[0]):
-        Y_rss[i,:,:] = Y_rss[i,:,:]/((np.max(Y_rss[i,:,:])-np.min(Y_rss[i,:,:]))+1e-10)
+        Y_rss[i,:,:] = normalize8(Y_rss[i,:,:])
+    
+    X_train_arr = X_train_arr.astype(np.uint8)
+    Y_rss = Y_rss.astype(np.uint8)
 
 
     print('Done. Performing a datasplit...')
@@ -336,7 +351,7 @@ for batch in range(num_batches):
 
     ## Save the results
 
-    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented/'
+    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_uint8/'
 
     np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), x_train)
     np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), y_train)
