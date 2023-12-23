@@ -5,7 +5,7 @@
 
 import resource
 
-resource.setrlimit(resource.RLIMIT_AS, (100_000_000_000, 100_000_000_000))
+resource.setrlimit(resource.RLIMIT_AS, (40_000_000_000, 40_000_000_000))
 
 
 print('Resource limit set. Importing libraries...')
@@ -312,26 +312,29 @@ for batch in range(num_batches):
 
     ## Normalize the data
 
-    def normalize8(I):
+    def normalize(I):
         mn = I.min()
         mx = I.max()
 
         mx -= mn
 
-        I = ((I - mn)/mx) * 255.0
-        return np.round(I).astype(np.uint8)
+        #I = ((I - mn)/mx) * 255.0
+        #return np.round(I).astype(np.uint8)
+    
+        I = ((I - mn)/mx)
+        return I.astype(np.float32)
 
     dims = X_train_arr.shape
 
     for i in range(dims[0]):
         for j in range(dims[3]):
-            X_train_arr[i,:,:,j] = normalize8(X_train_arr[i,:,:,j])
+            X_train_arr[i,:,:,j] = normalize(X_train_arr[i,:,:,j])
 
     for i in range(dims[0]):
-        Y_rss[i,:,:] = normalize8(Y_rss[i,:,:])
+        Y_rss[i,:,:] = normalize(Y_rss[i,:,:])
     
-    X_train_arr = X_train_arr.astype(np.uint8)
-    Y_rss = Y_rss.astype(np.uint8)
+    #X_train_arr = X_train_arr.astype(np.uint8)
+    #Y_rss = Y_rss.astype(np.uint8)
 
 
     print('Done. Performing a datasplit...')
@@ -351,7 +354,7 @@ for batch in range(num_batches):
 
     ## Save the results
 
-    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_uint8/'
+    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_float32/'
 
     np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), x_train)
     np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), y_train)

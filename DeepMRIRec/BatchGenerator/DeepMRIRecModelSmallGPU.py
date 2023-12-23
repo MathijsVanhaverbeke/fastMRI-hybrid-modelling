@@ -46,7 +46,7 @@ print('Libraries imported. Starting to prepare the dataset...')
 
 ## Prepare dataset
 
-path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_float32/'
+path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_float32_small_batch/'
 
 
 file_paths_train = sorted(glob.glob(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_*.npy"))
@@ -190,7 +190,7 @@ print('Done. Training the model...')
 import math
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 
-model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/ExtensiveSaves/DeepMRIRec_trained_in_batches_GPU_epoch{epoch:02d}.h5"
+model_name = "/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/ExtensiveSaves/DeepMRIRec_trained_in_small_batches_GPU_epoch{epoch:02d}.h5"
 
 def step_decay(epoch, initial_lrate, drop, epochs_drop):
     return initial_lrate * math.pow(drop, math.floor((1+epoch)/float(epochs_drop)))
@@ -217,7 +217,7 @@ history = model.fit(training_dataset,
             callbacks=get_callbacks(model_name,0.6,10,1))
 
 
-model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/ExtensiveSaves/final_model_DeepMRIRec_trained_in_batches_GPU.h5")
+model.save_weights("/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Models/ExtensiveSaves/final_model_DeepMRIRec_trained_in_small_batches_GPU.h5")
 
 
 print("Done. Saved model to disk.")

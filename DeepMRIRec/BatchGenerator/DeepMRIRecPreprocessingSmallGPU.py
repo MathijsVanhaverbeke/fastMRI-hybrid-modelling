@@ -59,8 +59,9 @@ print('All variables are loaded. Start preprocessing data in batches...')
 
 
 
-batch_number = 1
-batch_size = 5
+training_batch_number = 1
+validation_batch_number = 1
+batch_size = 1
 # Note: batch_size here has unit 'number of files', not 'number of slices'
 
 
@@ -189,7 +190,7 @@ for batch in range(num_batches):
 
     batch_files = training_files[batch*batch_size:(batch+1)*batch_size]
 
-    print('Preprocessing batch '+str(batch_number)+'...')
+    print('Preprocessing training batches '+str(training_batch_number)+'-'+str(training_batch_number+3)+' and validation batch '+str(validation_batch_number)+'...')
 
 
     ## Create training data pairs and estimate GRAPPA kernels
@@ -291,8 +292,11 @@ for batch in range(num_batches):
 
     X_train_arr = np.array(augmented_image_X)
     Y_train_arr = np.array(augmented_image_Y)
-    X_train_arr = select_slices(X_train_arr, minimum_slices, 150)
-    Y_train_arr = select_slices(Y_train_arr, minimum_slices, 150)
+    X_train_arr = select_slices(X_train_arr, minimum_slices, 36)
+    Y_train_arr = select_slices(Y_train_arr, minimum_slices, 36)
+    # Optimal training mini-batch size is apparently 32: https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
+    # 90% of 36 = 32
+    # 10% of 36 = 4
 
 
     print('Done. Calculating RSS images as references for the loss function...')
@@ -309,14 +313,29 @@ for batch in range(num_batches):
 
     ## Normalize the data
 
+    def normalize(I):
+        mn = I.min()
+        mx = I.max()
+
+        mx -= mn
+
+        #I = ((I - mn)/mx) * 255.0
+        #return np.round(I).astype(np.uint8)
+    
+        I = ((I - mn)/mx)
+        return I.astype(np.float32)
+
     dims = X_train_arr.shape
 
     for i in range(dims[0]):
         for j in range(dims[3]):
-            X_train_arr[i,:,:,j] = X_train_arr[i,:,:,j]/((np.max(X_train_arr[i,:,:,j])-np.min(X_train_arr[i,:,:,j]))+1e-10)
+            X_train_arr[i,:,:,j] = normalize(X_train_arr[i,:,:,j])
 
     for i in range(dims[0]):
-        Y_rss[i,:,:] = Y_rss[i,:,:]/((np.max(Y_rss[i,:,:])-np.min(Y_rss[i,:,:]))+1e-10)
+        Y_rss[i,:,:] = normalize(Y_rss[i,:,:])
+    
+    #X_train_arr = X_train_arr.astype(np.uint8)
+    #Y_rss = Y_rss.astype(np.uint8)
 
 
     print('Done. Performing a datasplit...')
@@ -331,17 +350,53 @@ for batch in range(num_batches):
     y_test = Y_rss[int(X_train_arr.shape[0]-X_train_arr.shape[0]*0.1):,:,:,:]
 
 
+    print('Done. Creating sub-batches for the training data...')
+
+
+    ## Create smaller sub-batches for the training data
+
+    def sub_batch(array1, array2):
+
+        dim_size = array1.shape[0]
+        indices = np.random.choice(dim_size, size=dim_size, replace=False)
+        selection_size = len(indices) // 4
+        indices_1 = list(indices[0:selection_size])
+        indices_2 = list(indices[selection_size:2*selection_size])
+        indices_3 = list(indices[2*selection_size:3*selection_size])
+        indices_4 = list(indices[3*selection_size:4*selection_size])
+
+        array1_1 = array1[indices_1]
+        array1_2 = array1[indices_2]
+        array1_3 = array1[indices_3]
+        array1_4 = array1[indices_4]
+
+        array2_1 = array2[indices_1]
+        array2_2 = array2[indices_2]
+        array2_3 = array2[indices_3]
+        array2_4 = array2[indices_4]
+
+        return array1_1, array1_2, array1_3, array1_4, array2_1, array2_2, array2_3, array2_4
+    
+    x_train_1, x_train_2, x_train_3, x_train_4, y_train_1, y_train_2, y_train_3, y_train_4 = sub_batch(x_train, y_train)
+
+
     print('Done. Saving results...')
 
 
     ## Save the results
 
-    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/Backlog/mri_augmented/'
+    path_to_save_mri_data = '/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/Preprocessing/mri_augmented_float32_small_batch/'
 
-    np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), x_train)
-    np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), y_train)
-    np.save(path_to_save_mri_data+"validation_data_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), x_test)
-    np.save(path_to_save_mri_data+"validation_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(batch_number), y_test)
+    np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number), x_train_1)
+    np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number), y_train_1)
+    np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+1), x_train_2)
+    np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+1), y_train_2)
+    np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+2), x_train_3)
+    np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+2), y_train_3)
+    np.save(path_to_save_mri_data+"training_data_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+3), x_train_4)
+    np.save(path_to_save_mri_data+"training_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(training_batch_number+3), y_train_4)
+    np.save(path_to_save_mri_data+"validation_data_DeepMRIRec_16_coils_batch_{}.npy".format(validation_batch_number), x_test)
+    np.save(path_to_save_mri_data+"validation_data_GT_DeepMRIRec_16_coils_batch_{}.npy".format(validation_batch_number), y_test)
     
 
     print('Done. Clearing memory and preparing to load in a new batch...')
@@ -363,7 +418,8 @@ for batch in range(num_batches):
 
 
     print('Done.')
-    batch_number += 1
+    training_batch_number += 4
+    validation_batch_number += 1
 
 
 

@@ -422,7 +422,7 @@ def model_loss_all(y_true, y_pred):
 
     res_y_pred = tf.image.grayscale_to_rgb(y_pred*255)
     res_y_pred = preprocess_input(res_y_pred)
-    vgg_f_pred = vgg_model( res_y_pred)
+    vgg_f_pred = vgg_model(res_y_pred)
 
     for h1, h2, cw in zip(vgg_f_gt, vgg_f_pred, selected_layer_weights_content):
         content_loss = content_loss + cw *tf.reduce_mean(tf.square(tf.math.abs(h1 - h2)))
