@@ -1,0 +1,4 @@
+https://github.com/facebookresearch/fastMRI/tree/main/fastmri_examples/unet
+https://github.com/vincenzocolella/Res-U-Net-with-GRAPPA-and-ESPIRiT
+
+conda: DL_MRI_reconstruction_baselines

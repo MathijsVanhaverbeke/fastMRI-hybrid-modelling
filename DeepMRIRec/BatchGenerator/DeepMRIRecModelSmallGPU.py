@@ -31,6 +31,11 @@ from tensorflow.keras.applications.vgg19 import preprocess_input
 import threading
 os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
 
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth=True
+sess = tf.compat.v1.Session(config=config)
+tf.compat.v1.keras.backend.set_session(sess)
+
 #tf.keras.backend.set_floatx('float16')
 #tf.keras.mixed_precision.experimental.set_policy('mixed_float16')
 

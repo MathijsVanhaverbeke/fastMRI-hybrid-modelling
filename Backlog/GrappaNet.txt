@@ -1,0 +1,3 @@
+https://github.com/salammemphis/GrappaNet/blob/main/model_MR_reconstruction_GrappaNet.ipynb
+
+conda: DL_MRI_reconstruction
