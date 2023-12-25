@@ -145,13 +145,13 @@ def build_args():
     args = parser.parse_args()
 
     # configure checkpointing in checkpoint_dir
-    checkpoint_dir = args.default_root_dir
+    checkpoint_dir = default_root_dir
     if not checkpoint_dir.exists():
         checkpoint_dir.mkdir(parents=True)
 
     args.callbacks = [
         pl.callbacks.ModelCheckpoint(
-            dirpath=args.default_root_dir,
+            dirpath=default_root_dir,
             save_top_k=True,
             verbose=True,
             monitor="validation_loss",

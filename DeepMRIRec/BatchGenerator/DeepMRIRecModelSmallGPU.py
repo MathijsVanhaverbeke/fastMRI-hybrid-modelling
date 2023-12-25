@@ -21,7 +21,7 @@ import glob
 import tensorflow as tf
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Input, BatchNormalization, Conv2D, MaxPooling2D
-from tensorflow.keras.layers import PReLU, add, Attention, Dropout
+from tensorflow.keras.layers import PReLU, ReLU, LeakyReLU, add, Attention, Dropout
 from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -37,10 +37,11 @@ sess = tf.compat.v1.Session(config=config)
 tf.compat.v1.keras.backend.set_session(sess)
 
 #tf.keras.backend.set_floatx('float16')
-#tf.keras.mixed_precision.experimental.set_policy('mixed_float16')
+policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
+tf.keras.mixed_precision.experimental.set_policy(policy)
 
-tf.keras.backend.set_floatx('float32')
-tf.keras.mixed_precision.experimental.set_policy('float32')
+#tf.keras.backend.set_floatx('float32')
+#tf.keras.mixed_precision.experimental.set_policy('float32')
 
 
 crop_size = (12,640,320)
@@ -126,7 +127,7 @@ def model_loss_all(y_true, y_pred):
     vgg_f_pred = vgg_model(res_y_pred)
 
     for h1, h2, cw in zip(vgg_f_gt, vgg_f_pred, selected_layer_weights_content):
-        content_loss = content_loss + cw *tf.reduce_mean(tf.square(tf.math.abs(h1 - h2)))
+        content_loss = content_loss + cw *tf.reduce_mean(tf.square(tf.math.abs(tf.cast(h1,tf.float32) - tf.cast(h2,tf.float32))))
     
     return loss_weights[0]*ssim_loss+loss_weights[1]*pixel_loss +loss_weights[2]*content_loss
 
@@ -135,7 +136,7 @@ def conv_block(ip, nfilters, drop_rate):
     layer_top = Conv2D(nfilters, (3,3), padding = "same")(ip)
     layer_top = BatchNormalization()(layer_top)
 
-    res_model = PReLU()(layer_top)
+    res_model = LeakyReLU()(layer_top)
     res_model = Dropout(drop_rate)(res_model)
     
     res_model = Conv2D(nfilters, (3,3), padding = "same")(res_model)
@@ -143,7 +144,7 @@ def conv_block(ip, nfilters, drop_rate):
 
     res_model = Dropout(drop_rate)(res_model)
     res_model = add([layer_top,res_model])
-    res_model = PReLU()(res_model)
+    res_model = LeakyReLU()(res_model)
     return res_model
 
 def encoder(inp, nlayers, nbasefilters, drop_rate):
@@ -178,8 +179,7 @@ def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
     # Add sigmoid activation layer to force output images to have pixel values [0,1]
-    #op = Activation('sigmoid', dtype='float32')(op)
-    op = Activation('sigmoid')(op)
+    op = Activation('sigmoid', dtype='float32')(op)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
@@ -212,11 +212,11 @@ strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     model = create_gen(input_layer,5,32,0.01)
     metrics = tf.keras.metrics.RootMeanSquaredError()
-    model.compile(loss=model_loss_all, optimizer= Adam(learning_rate=0.0001),metrics=[metrics] )
+    model.compile(loss=model_loss_all, optimizer= Adam(learning_rate=0.0001),metrics=[metrics])
 
 
 history = model.fit(training_dataset,
-            epochs=20,  # In their paper, they use 100 epochs
+            epochs=100,
             shuffle=True,
             validation_data=validation_dataset,
             callbacks=get_callbacks(model_name,0.6,10,1))
