@@ -11,7 +11,7 @@ import random
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
-from pytorch_lightning.logging import TestTubeLogger
+from pytorch_lightning.logging import TensorBoardLogger
 from torch.nn import functional as F
 from torch.optim import RMSprop
 
@@ -239,7 +239,7 @@ def create_trainer(args, logger):
 def main(args):
     if args.mode == 'train':
         load_version = 0 if args.resume else None
-        logger = TestTubeLogger(save_dir=args.exp_dir, name=args.exp, version=load_version)
+        logger = TensorBoardLogger(save_dir=args.exp_dir, name=args.exp, version=load_version)
         trainer = create_trainer(args, logger)
         model = UnetMRIModel(args)
         trainer.fit(model)
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', choices=['train', 'test'], default='train')
     parser.add_argument('--num-epochs', type=int, default=50, help='Number of training epochs')
     parser.add_argument('--gpus', type=int, default=1)
-    parser.add_argument('--exp-dir', type=pathlib.Path, default='experiments',
+    parser.add_argument('--exp-dir', type=pathlib.Path, default='/home/mvhave7/GitLab/master_thesis/GrappaUNet/Checkpoints/',
                         help='Path where model and results should be saved')
     parser.add_argument('--exp', type=str, help='Name of the experiment')
     parser.add_argument('--checkpoint', type=pathlib.Path,

@@ -8,3 +8,4 @@ h5py>=2.10.0
 PyYAML>=5.3.1
 pytest>=5.4.3
 pyxb==1.2.6
+# Also make sure bart is installed
