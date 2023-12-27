@@ -11,7 +11,7 @@ import random
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
-from pytorch_lightning.logging import TensorBoardLogger
+from pytorch_lightning.logging import TestTubeLogger
 from torch.nn import functional as F
 from torch.optim import RMSprop
 
@@ -217,7 +217,7 @@ class UnetMRIModel(MRIModel):
                             help='Multiplicative factor of learning rate decay')
         parser.add_argument('--weight-decay', type=float, default=0.,
                             help='Strength of weight decay regularization')
-        parser.add_argument('--mask-type',default='random')
+        parser.add_argument('--mask-type', default='random')
         return parser
 
 
@@ -239,7 +239,7 @@ def create_trainer(args, logger):
 def main(args):
     if args.mode == 'train':
         load_version = 0 if args.resume else None
-        logger = TensorBoardLogger(save_dir=args.exp_dir, name=args.exp, version=load_version)
+        logger = TestTubeLogger(save_dir=args.exp_dir, name=args.exp, version=load_version)
         trainer = create_trainer(args, logger)
         model = UnetMRIModel(args)
         trainer.fit(model)

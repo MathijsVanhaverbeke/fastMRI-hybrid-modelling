@@ -8,4 +8,6 @@ h5py>=2.10.0
 PyYAML>=5.3.1
 pytest>=5.4.3
 pyxb==1.2.6
+test_tube
 # Also make sure bart is installed
+# For python compatibility, consult: https://github.com/malits/bartpy/tree/83ba894707f8aae2edc156bd9c31ac478a4bd966
