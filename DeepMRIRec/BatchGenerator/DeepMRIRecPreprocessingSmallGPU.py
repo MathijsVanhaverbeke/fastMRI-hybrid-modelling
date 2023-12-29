@@ -103,12 +103,13 @@ def calculate_mask(mask,start,end,nPE):
             f = f+1
     return mask
 
-def Grappa_recon(kspace,start, end):
+def Grappa_recon(kspace,start,end):
     calib = kspace[:,:,start:end].copy()
     res = grappa(kspace, calib, kernel_size=(5,5),coil_axis=0)
     return res
 
 def comp_img(img,crop_size):
+    ## Note: only functions correctly if the height and width of a slice of img are larger than the desired crop size
     s = img.shape
     start_height = s[1]//2 - (crop_size[1]//2)
     start_width = s[2]//2 - (crop_size[2]//2)
