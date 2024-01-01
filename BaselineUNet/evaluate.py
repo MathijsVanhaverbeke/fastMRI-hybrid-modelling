@@ -5,6 +5,7 @@ This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
 
+import os
 import argparse
 import pathlib
 from argparse import ArgumentParser
@@ -108,8 +109,16 @@ def evaluate(args, recons_key):
             if args.acquisition and args.acquisition != target.attrs["acquisition"]:
                 continue
 
-            if args.acceleration and target.attrs["acceleration"] != args.acceleration:
-                continue
+            if args.acceleration:
+                filename = tgt_file.name
+                mask_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/multicoil_test/'
+                mask = h5py.File(os.path.join(mask_path,filename),'r')
+                nPE_mask = mask['mask'][()]
+                sampled_columns = np.sum(nPE_mask)
+                R = len(nPE_mask)/sampled_columns
+                R = float(R)
+                if R > float(args.acceleration)+0.1 or R < float(args.acceleration)-0.1:
+                    continue
 
             target = target[recons_key][()]
             recons = recons["reconstruction"][()]
