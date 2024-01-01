@@ -47,21 +47,33 @@ def cli_main(args):
     # ------------
     # model
     # ------------
-    model = UnetModule(
-        in_chans=args.in_chans,
-        out_chans=args.out_chans,
-        chans=args.chans,
-        num_pool_layers=args.num_pool_layers,
-        drop_prob=args.drop_prob,
-        lr=args.lr,
-        lr_step_size=args.lr_step_size,
-        lr_gamma=args.lr_gamma,
-        weight_decay=args.weight_decay,
-    )
     trainer = pl.Trainer.from_argparse_args(args)
     if args.mode == "train":
+        model = UnetModule(
+            in_chans=args.in_chans,
+            out_chans=args.out_chans,
+            chans=args.chans,
+            num_pool_layers=args.num_pool_layers,
+            drop_prob=args.drop_prob,
+            lr=args.lr,
+            lr_step_size=args.lr_step_size,
+            lr_gamma=args.lr_gamma,
+            weight_decay=args.weight_decay,
+        )
         trainer.fit(model, datamodule=data_module)
     elif args.mode == "test":
+        model = UnetModule.load_from_checkpoint(
+            checkpoint_path=args.resume_from_checkpoint,
+            in_chans=args.in_chans,
+            out_chans=args.out_chans,
+            chans=args.chans,
+            num_pool_layers=args.num_pool_layers,
+            drop_prob=args.drop_prob,
+            lr=args.lr,
+            lr_step_size=args.lr_step_size,
+            lr_gamma=args.lr_gamma,
+            weight_decay=args.weight_decay,
+        )
         trainer.test(model, datamodule=data_module)
     else:
         raise ValueError(f"unrecognized mode {args.mode}")
