@@ -1,5 +1,0 @@
-export CUDA_VERSION="10.1"
-export PATH="/usr/local/cuda-${CUDA_VERSION}/bin:$PATH"
-export LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:/usr/local/cuda-${CUDA_VERSION}/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
-export CUDA_ROOT="/usr/local/cuda-${CUDA_VERSION}"
-export CUDA_HOME="/usr/local/cuda-${CUDA_VERSION}"
