@@ -1,3 +1,3 @@
-https://github.com/ketatam/multi-domain-unet-fastMRI/tree/main/models
+[Based on the code of the BaselineUNet]
 
-conda: DL_MRI_reconstruction_baselines_2
+conda: DL_MRI_reconstruction_baselines
