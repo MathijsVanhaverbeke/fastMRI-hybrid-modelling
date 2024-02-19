@@ -25,12 +25,7 @@ from tensorflow.keras.layers import PReLU, ReLU, LeakyReLU, add, Attention, Drop
 from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.applications import VGG19
-from tensorflow.keras.applications import VGG19
-from tensorflow.keras.applications.vgg19 import preprocess_input
 import threading
-from skimage.metrics import structural_similarity
-from typing import Optional
 os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
 
 config = tf.compat.v1.ConfigProto()
@@ -44,6 +39,9 @@ tf.keras.mixed_precision.experimental.set_policy(policy)
 
 #tf.keras.backend.set_floatx('float32')
 #tf.keras.mixed_precision.experimental.set_policy('float32')
+
+# Set the logging level to ERROR to suppress warnings
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
 crop_size = (12,640,320)
@@ -99,60 +97,22 @@ print('Done. Building the DeepMRIRec model architecture...')
 model = None
 kernel_size = (3,3)
 
-# Determined by myself to give ssim_loss and l1_loss a similar weight, whilst giving content_loss a weight of one order of magnitude smaller
-loss_weights = [1.0, 0.01, 0.1]
+# Determined by myself to give ssim_loss and l1_loss a numerically similar weight
+loss_weights = [1.0, 0.000001]
 
-selected_layers = ['block1_conv1', 'block2_conv2', 'block3_conv3' ,'block4_conv3']
-selected_layer_weights_content = [0.001, 0.01, 2, 4]
-
-vgg = VGG19(weights='imagenet', include_top=False, input_shape=(crop_size[1],crop_size[2],3))
-vgg.trainable = False
-
-outputs = [vgg.get_layer(l).output for l in selected_layers]
-vgg_model = Model(vgg.input, outputs)
-vgg_model.trainable = False
-
-# Use the official fastmri ssim function implementation
-def ssim(
-    gt: np.ndarray, pred: np.ndarray, maxval: Optional[float] = None
-) -> np.ndarray:
-    """Compute Structural Similarity Index Metric (SSIM)"""
-    if not gt.ndim == 3:
-        raise ValueError("Unexpected number of dimensions in ground truth.")
-    if not gt.ndim == pred.ndim:
-        raise ValueError("Ground truth dimensions does not match pred.")
-
-    maxval = gt.max() if maxval is None else maxval
-
-    ssim = np.array([0])
-    for slice_num in range(gt.shape[0]):
-        ssim = ssim + structural_similarity(
-            gt[slice_num], pred[slice_num], data_range=maxval
-        )
-
-    return ssim / gt.shape[0]
+# Use the tensorflow equivalent of the official fastmri ssim function implementation
+def ssim_tf(gt_tf, pred_tf, maxval=None):
+    maxval = tf.math.reduce_max(gt_tf) if maxval is None else maxval
+    ssim = tf.reduce_mean(tf.image.ssim(img1=gt_tf,img2=pred_tf,max_val=maxval))
+    return ssim
 
 def model_loss_all(y_true, y_pred):
-    global vgg_model
     global loss_weights
-    global selected_layer_weights_content
     
-    ssim_loss = 1 - ssim(y_true.numpy()[:,:,:,0], y_pred.numpy()[:,:,:,0])
+    ssim_loss = 1 - ssim_tf(y_true, y_pred)
     l1_loss = tf.reduce_sum(tf.math.abs(y_true-y_pred))
     
-    content_loss = 0.0
-    res_y_rss = tf.image.grayscale_to_rgb(y_true*255)
-    res_y_rss = preprocess_input(res_y_rss)
-    vgg_f_gt = vgg_model(res_y_rss)
-
-    res_y_pred = tf.image.grayscale_to_rgb(y_pred*255)
-    res_y_pred = preprocess_input(res_y_pred)
-    vgg_f_pred = vgg_model(res_y_pred)
-
-    for h1, h2, cw in zip(vgg_f_gt, vgg_f_pred, selected_layer_weights_content):
-        content_loss = content_loss + cw *tf.reduce_mean(tf.square(tf.math.abs(tf.cast(h1,tf.float32) - tf.cast(h2,tf.float32))))
-    
-    return loss_weights[0]*ssim_loss+loss_weights[1]*l1_loss +loss_weights[2]*content_loss
+    return loss_weights[0]*ssim_loss+loss_weights[1]*l1_loss
 
 def conv_block(ip, nfilters, drop_rate):
     
@@ -201,6 +161,8 @@ def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op,skip_layers = encoder(gen_ip,nlayers, nbasefilters,drop_rate)
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
+    # Add linear activation layer to force output images to be float32
+    op = Activation('linear', dtype='float32')(op)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
