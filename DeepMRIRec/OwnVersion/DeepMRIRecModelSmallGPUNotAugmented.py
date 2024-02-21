@@ -161,8 +161,8 @@ def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op,skip_layers = encoder(gen_ip,nlayers, nbasefilters,drop_rate)
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
-    # Add linear activation layer to force output images to be float32
-    op = Activation('linear', dtype='float32')(op)
+    # Add sigmoid activation layer
+    op = Activation('sigmoid', dtype='float32')(op)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
