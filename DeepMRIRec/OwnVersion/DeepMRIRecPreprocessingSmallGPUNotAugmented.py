@@ -171,26 +171,12 @@ for batch in range(num_batches):
                         chindx = chindx+1
                     X_train.append(list(comp_img(sub_img,crop_size)))
                     Y_train.append(list(comp_img(ref_img,crop_size)))
-                print(cnt,filename,sequence,nSL,nCh,nFE,nPE,sub_img.shape,"ACS region indices: ",start,end,"Processing time: ", time.time()-ts)
+                print(cnt,filename,sequence,nSL,nCh,nFE,nPE,sub_img.shape,"ACS region indices: ",start,end,"Processing time: ",time.time()-ts)
                 cnt += 1
                 gc.collect()
                 time.sleep(1)
     X_train_arr = np.array(X_train).astype(np.float32)
     Y_train_arr = np.array(Y_train).astype(np.float32)
-
-
-    print('Done. Normalizing the input data...')
-
-
-    ## Normalize the input data
-
-    def normalize(data, eps=0.0):
-        mean = np.mean(data)
-        std = np.std(data)
-        return (data - mean) / (std + eps)
-
-    X_train_arr = normalize(X_train_arr)
-    X_train_arr = np.clip(X_train_arr, -6, 6)
 
 
     print('Done. Calculating RSS images as references for the loss function...')
@@ -203,6 +189,31 @@ for batch in range(num_batches):
 
     Y_rss = np.sqrt(np.sum(np.square(Y_train_arr),axis=3))
     Y_rss = Y_rss.astype(np.float32)
+
+
+    print('Done. Normalizing the input data...')
+
+
+    ## Normalize the input data exactly like how the baseline UNet normalizes data
+
+    def normalize(data, mean, std, eps=0.0):
+        return (data - mean) / (std + eps)
+
+    def normalize_instance(data, eps=0.0):
+        mean = np.mean(data)
+        std = np.std(data)
+        return normalize(data, mean, std, eps), mean, std
+
+    dims = X_train_arr.shape
+
+    for i in range(dims[0]):
+        for j in range(dims[-1]):
+            X_train_arr[i,:,:,j], _, _ = normalize_instance(X_train_arr[i,:,:,j])
+            X_train_arr[i,:,:,j] = np.clip(X_train_arr[i,:,:,j], -6, 6)
+
+    for i in range(dims[0]):
+        Y_rss[i,:,:], _, _ = normalize_instance(Y_rss[i,:,:])
+        Y_rss[i,:,:] = np.clip(Y_rss[i,:,:], -6, 6)
 
 
     print('Done. Performing a datasplit...')
