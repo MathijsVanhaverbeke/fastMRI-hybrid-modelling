@@ -240,24 +240,36 @@ for checkpoint in model_checkpoints:
         X_test_arr = np.array(X_test).astype(np.float32)
         Y_test_arr = np.array(Y_test).astype(np.float32)
 
-        def normalize(data, eps=0.0):
-            mean = np.mean(data)
-            std = np.std(data)
-            return (data - mean) / (std + eps)
-
-        X_test_arr = normalize(X_test_arr)
-        X_test_arr = np.clip(X_test_arr, -6, 6)
-
         X_test_arr = np.transpose(X_test_arr,(0,2,3,1))
         Y_test_arr = np.transpose(Y_test_arr,(0,2,3,1))
 
         Y_rss = np.sqrt(np.sum(np.square(Y_test_arr),axis=3))
         Y_rss = Y_rss.astype(np.float32)
 
+        def normalize(data, mean, std, eps=0.0):
+            return (data - mean) / (std + eps)
+
+        def normalize_instance(data, eps=0.0):
+            mean = np.mean(data)
+            std = np.std(data)
+            return normalize(data, mean, std, eps), mean, std
+
+        dims = X_test_arr.shape
+
+        for i in range(dims[0]):
+            for j in range(dims[-1]):
+                X_test_arr[i,:,:,j], _, _ = normalize_instance(X_test_arr[i,:,:,j])
+                X_test_arr[i,:,:,j] = np.clip(X_test_arr[i,:,:,j], -6, 6)
+
+        for i in range(dims[0]):
+            Y_rss[i,:,:], _, _ = normalize_instance(Y_rss[i,:,:])
+            Y_rss[i,:,:] = np.clip(Y_rss[i,:,:], -6, 6)
+
         # Make prediction with our model
         reconstructed_test_image = model.predict(X_test_arr)
         reconstructed_test_image = reconstructed_test_image[:,:,:,0]
 
+        # Note: actually, here we should also look into cropping the images to the central 320x320 region to avoid background noise influencing the metrics
         calculated_mse = mse(Y_rss, reconstructed_test_image)
         calculated_nmse = nmse(Y_rss, reconstructed_test_image)
         calculated_psnr = psnr(Y_rss, reconstructed_test_image)

@@ -293,6 +293,7 @@ for checkpoint in model_checkpoints:
         reconstructed_test_image = model.predict(X_test_arr)
         reconstructed_test_image = reconstructed_test_image[:,:,:,0]
 
+        # Note: actually, here we should also look into cropping the images to the central 320x320 region to avoid background noise influencing the metrics
         calculated_mse = mse(Y_rss, reconstructed_test_image)
         calculated_nmse = nmse(Y_rss, reconstructed_test_image)
         calculated_psnr = psnr(Y_rss, reconstructed_test_image)
