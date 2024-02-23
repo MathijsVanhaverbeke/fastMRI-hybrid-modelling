@@ -17,9 +17,9 @@ from typing import Optional
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Activation, Lambda
+from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Input,BatchNormalization, Conv2D, MaxPooling2D
-from tensorflow.keras.layers import ReLU, PReLU, LeakyReLU, add, Attention, Dropout
+from tensorflow.keras.layers import PReLU, LeakyReLU, add, Attention, Dropout
 from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.models import Model
 
@@ -79,15 +79,13 @@ def decoder(inp, nlayers, nbasefilters,skip_layers, drop_rate):
         layers=add([layers,skip_layers.pop()])
     return layers
 
-def clipped_relu(x):
-    return ReLU(x, max_value=1.0)
-
 def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op,skip_layers = encoder(gen_ip,nlayers, nbasefilters,drop_rate)
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
     # Add activation layer to make sure the output is float32 and has pixels [0,1]
-    op = Activation(Lambda(clipped_relu), dtype='float32')(op)
+    op = Activation('relu', dtype='float32')(op)
+    op = tf.clip_by_value(op, clip_value_min=0.0, clip_value_max=1.0)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
