@@ -162,8 +162,7 @@ def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
     # Add activation layer to make sure the output is float32 and has pixels [0,1]
-    op = Activation('relu', dtype='float32')(op)
-    op = tf.clip_by_value(op, clip_value_min=0.0, clip_value_max=1.0)
+    op = Activation('sigmoid', dtype='float32')(op)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
