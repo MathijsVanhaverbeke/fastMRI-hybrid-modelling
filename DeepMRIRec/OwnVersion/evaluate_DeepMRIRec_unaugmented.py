@@ -36,12 +36,23 @@ def ssim_tf(gt_tf, pred_tf, maxval=None):
     ssim = tf.reduce_mean(tf.image.ssim(img1=gt_tf,img2=pred_tf,max_val=maxval))
     return ssim
 
+def l1_loss_tf(y_true, y_pred):
+    loss = tf.reduce_mean(tf.abs(y_pred - y_true))
+    return loss
+
+def huber_loss_tf(y_true, y_pred, delta=1.0):
+    error = y_pred - y_true
+    abs_error = tf.abs(error)
+    quadratic = tf.minimum(abs_error, delta)
+    linear = (abs_error - quadratic)
+    return tf.reduce_mean(0.5 * quadratic ** 2 + delta * linear)
+
 def model_loss_all(y_true, y_pred):
     global loss_weights
-    
+
     ssim_loss = 1 - ssim_tf(y_true, y_pred)
-    l1_loss = tf.reduce_sum(tf.math.abs(y_true-y_pred))
-    
+    l1_loss = l1_loss_tf(y_true, y_pred)
+
     return loss_weights[0]*ssim_loss+loss_weights[1]*l1_loss
 
 def conv_block(ip, nfilters, drop_rate):

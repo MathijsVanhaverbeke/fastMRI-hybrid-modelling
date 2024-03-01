@@ -36,12 +36,23 @@ def ssim_tf(gt_tf, pred_tf, maxval=None):
     ssim = tf.reduce_mean(tf.image.ssim(img1=gt_tf,img2=pred_tf,max_val=maxval))
     return ssim
 
+def l1_loss_tf(y_true, y_pred):
+    loss = tf.reduce_mean(tf.abs(y_pred - y_true))
+    return loss
+
+def huber_loss_tf(y_true, y_pred, delta=1.0):
+    error = y_pred - y_true
+    abs_error = tf.abs(error)
+    quadratic = tf.minimum(abs_error, delta)
+    linear = (abs_error - quadratic)
+    return tf.reduce_mean(0.5 * quadratic ** 2 + delta * linear)
+
 def model_loss_all(y_true, y_pred):
     global loss_weights
-    
+
     ssim_loss = 1 - ssim_tf(y_true, y_pred)
-    l1_loss = tf.reduce_sum(tf.math.abs(y_true-y_pred))
-    
+    l1_loss = l1_loss_tf(y_true, y_pred)
+
     return loss_weights[0]*ssim_loss+loss_weights[1]*l1_loss
 
 def conv_block(ip, nfilters, drop_rate):
@@ -83,8 +94,8 @@ def create_gen(gen_ip, nlayers, nbasefilters, drop_rate):
     op,skip_layers = encoder(gen_ip,nlayers, nbasefilters,drop_rate)
     op = decoder(op,nlayers, nbasefilters,skip_layers,drop_rate)
     op = Conv2D(1, (3,3), padding = "same")(op)
-    # Add activation layer to make sure the output is float32 and has pixels [0,1]
-    op = Activation('sigmoid', dtype='float32')(op)
+    # Add activation layer to make sure the output is float32
+    op = Activation('linear', dtype='float32')(op)
     return Model(inputs=gen_ip,outputs=op)
 
 input_shape = (crop_size[1],crop_size[2],crop_size[0])
@@ -246,6 +257,9 @@ for checkpoint in model_checkpoints:
 
         Y_rss = np.sqrt(np.sum(np.square(Y_test_arr),axis=3))
         Y_rss = Y_rss.astype(np.float32)
+
+        X_test_arr = X_test_arr * 10**7
+        Y_rss = Y_rss * 10**7
 
         # Make prediction with our model
         reconstructed_test_image = model.predict(X_test_arr)
