@@ -1,0 +1,3 @@
+Based on the already preprocessed data from the folder GrappaUNet
+
+conda: DL_MRI_reconstruction_baselines
