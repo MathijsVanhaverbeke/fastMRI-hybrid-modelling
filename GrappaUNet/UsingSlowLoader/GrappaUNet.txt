@@ -1,0 +1,3 @@
+[Based on the code of the BaselineUNet]
+
+conda: DL_MRI_reconstruction_baselines

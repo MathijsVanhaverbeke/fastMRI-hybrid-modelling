@@ -1,0 +1,4 @@
+[Based on the code of the BaselineUNet]
+
+conda: Preprocessing: DL_MRI_reconstruction_baselines_2
+conda: Training DL model: DL_MRI_reconstruction_baselines
