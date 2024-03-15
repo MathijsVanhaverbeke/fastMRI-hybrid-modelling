@@ -85,9 +85,21 @@ def evaluate(args, recons_key):
 def perform_pairwise_t_test(metrics_1, metrics_2):
 
     for (m_name_1, metric_1), (m_name_2, metric_2) in zip(metrics_1.items(), metrics_2.items()):
-        t_statistic, p_value = stats.ttest_rel(metric_1, metric_2, nan_policy='raise', alternative='two-sided')
-        print("For pairwise values of metric {}, the following results were obtained from a two-sided pairwise t-test: \
-              T-statistic = {}, p-value = {}, degrees of freedom = {}.".format(m_name_1, str(t_statistic), str(p_value), str((len(metric_1)-1))))
+        print("Performing statistical analysis for metric: " + m_name_1)
+        t_statistic, p_value_t = stats.ttest_rel(metric_1, metric_2, nan_policy='raise', alternative='two-sided')
+        print("For pairwise values of metric {}, the following results were obtained from a two-sided paired t-test: T-statistic = {}, p-value = {}, degrees of freedom = {}.".format(m_name_1, str(t_statistic), str(p_value_t), str((len(metric_1)-1))))
+        _, p_value_shapiro = stats.shapiro(metric_1-metric_2)
+        if p_value_shapiro < 0.05:
+            print("WARNING: the paired differences are likely not normally distributed, as shapiro's p-value equals: ", str(p_value_shapiro))
+        _, p_value_w = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='two-sided')
+        print("For pairwise values of metric {}, the following result was obtained from a two-sided Wilcoxon signed-rank test: p-value = {}.".format(m_name_1, str(p_value_w)))
+        if p_value_w < 0.05:
+            print("The median of the differences between the paired observations is significantly different from zero. Let's confirm the direction of the difference through one-sided Wilcoxon signed-rank tests now.")
+            _, p_value_w_greater = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='greater')
+            print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the positive direction: p-value = {}.".format(m_name_1, str(p_value_w_greater)))
+            _, p_value_w_less = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='less')
+            print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the negative direction: p-value = {}.".format(m_name_1, str(p_value_w_less)))
+        print()
 
 
 def mse(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
