@@ -1,2 +1,2 @@
 brain_path: /usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/
-log_path: /home/mvhave7/GitLab/master_thesis/BaselineUNet/Checkpoints/
+log_path: /usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/GitLab/master_thesis/BaselineUNet/Checkpoints_combined_R/
