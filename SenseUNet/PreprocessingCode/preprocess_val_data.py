@@ -26,7 +26,7 @@ def apply_mask(slice_kspace, mask_func):
         mask (torch.tensor)
     '''
     slice_kspace_T = T.to_tensor(slice_kspace)
-    masked_kspace_T, mask = T.apply_mask(slice_kspace_T, mask_func)   # Apply the mask to k-space
+    masked_kspace_T, mask = T.apply_mask(slice_kspace_T, mask_func, seed=42) # Use seed for validation data
     masked_kspace = T.tensor_to_complex_np(masked_kspace_T)
     return masked_kspace, mask
 
@@ -94,7 +94,7 @@ def CG_SENSE(kspace, S, lamda=0.005, num_iter=50):
     kspace_perm = np.expand_dims(kspace_perm, axis=2)
     S_perm = np.expand_dims(S_perm, axis=2)
     # Perform CG-SENSE reconstruction
-    reconstruction = bart.bart(1, 'pics -S -l2 -r {} -i {}'.format(lamda, num_iter), kspace_perm, S_perm)
+    reconstruction = bart.bart(1, 'pics -S -l2 -r {} -i {} -d 0'.format(lamda, num_iter), kspace_perm, S_perm)
     return reconstruction
 
 for file in files:
@@ -104,9 +104,9 @@ for file in files:
     kspace = hf['kspace'][()]
     print("Shape of the raw kspace: ", str(np.shape(kspace)))
     if undersampling_bool:
-        mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4], seed=42) # Use seed for validation data
+        mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4])
     else:
-        mask_func = EquispacedMaskFunc(center_fractions=[0.04], accelerations=[8], seed=42) # Use seed for validation data
+        mask_func = EquispacedMaskFunc(center_fractions=[0.04], accelerations=[8])
     masked_kspace_ACS, mask_ACS = apply_mask(kspace, mask_func)
     print("Shape of the generated ACS mask: ", str(mask_ACS.shape))
     if undersampling_bool:

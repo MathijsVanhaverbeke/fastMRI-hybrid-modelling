@@ -24,7 +24,7 @@ def apply_mask(slice_kspace, mask_func):
         mask (torch.tensor)
     '''
     slice_kspace_T = T.to_tensor(slice_kspace)
-    masked_kspace_T, mask = T.apply_mask(slice_kspace_T, mask_func)   # Apply the mask to k-space
+    masked_kspace_T, mask = T.apply_mask(slice_kspace_T, mask_func)
     masked_kspace = T.tensor_to_complex_np(masked_kspace_T)
     return masked_kspace, mask
 
@@ -35,6 +35,20 @@ def generate_array(shape, R, mat_file, tensor_out):
         array = mat_file['m320_CS8_mask'].squeeze()
     else:
         raise ValueError('Unrecognized acceleration factor specified. Must be 4 or 8.')
+    # Calculate padding needed to reach the desired length
+    desired_length = shape[-1]
+    padding_needed = desired_length - len(array)
+    if padding_needed > 0:
+        # Calculate padding width for symmetric padding
+        padding_width = (padding_needed // 2, padding_needed - padding_needed // 2)
+        # Pad the array symmetrically
+        array = np.pad(array, padding_width, mode='symmetric')
+    elif padding_needed < 0:
+        # Calculate trimming indices for symmetric trimming
+        trim_start = -padding_needed // 2
+        trim_end = len(array) + padding_needed // 2
+        # Trim the array symmetrically
+        array = array[trim_start:trim_end]
     # Make array compatible with fastmri mask function class
     for i in range(len(shape)-1):
         array = np.expand_dims(array, 0)
@@ -79,7 +93,7 @@ def CS(kspace, S, lamda=0.005, num_iter=50):
     kspace_perm = np.expand_dims(kspace_perm, axis=2)
     S_perm = np.expand_dims(S_perm, axis=2)
     # Perform CS
-    reconstruction = bart.bart(1, 'pics -S -l1 -r {} -i {}'.format(lamda, num_iter), kspace_perm, S_perm)
+    reconstruction = bart.bart(1, 'pics -S -l1 -r {} -i {} -d 0'.format(lamda, num_iter), kspace_perm, S_perm)
     return reconstruction
 
 def closer_to_4_or_8(float):
