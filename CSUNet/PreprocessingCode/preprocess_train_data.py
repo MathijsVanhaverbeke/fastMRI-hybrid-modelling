@@ -8,11 +8,15 @@ import time
 import gc
 import bart
 import scipy.io as sio
+import random
 
 mat_file = sio.loadmat('/usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/GitLab/master_thesis/fastMRI/sampling_profiles_CS.mat')
 folder_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/multicoil_train/'
 files = Path(folder_path).glob('**/*')
 file_count = 1
+
+def fifty_fifty():
+    return random.random() < .5
 
 def apply_mask(slice_kspace, mask_func):
     ''' 
@@ -84,13 +88,20 @@ def CS(kspace, S, lamda=0.005, num_iter=50):
 
 for file in files:
     print(str(file_count)+". Starting to process file "+str(file)+'...')
+    undersampling_bool = fifty_fifty()
     hf = h5py.File(file, 'a') # Open in append mode
     kspace = hf['kspace'][()]
     print("Shape of the raw kspace: ", str(np.shape(kspace)))
-    mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4])
+    if undersampling_bool:
+        mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4])
+    else:
+        mask_func = EquispacedMaskFunc(center_fractions=[0.04], accelerations=[8])
     masked_kspace_ACS, mask_ACS = apply_mask(kspace, mask_func)
     print("Shape of the generated ACS mask: ", str(mask_ACS.shape))
-    mask = generate_array(kspace.shape, 4, mat_file, tensor_out=False)
+    if undersampling_bool:
+        mask = generate_array(kspace.shape, 4, mat_file, tensor_out=False)
+    else:
+        mask = generate_array(kspace.shape, 8, mat_file, tensor_out=False)
     masked_kspace = kspace * mask + 0.0
     print("Shape of the generated CS mask: ", str(mask.shape))
     cs_data = np.zeros((kspace.shape[0], kspace.shape[2], kspace.shape[3]), dtype=np.complex64)
@@ -98,6 +109,9 @@ for file in files:
         S = estimate_sensitivity_maps(masked_kspace_ACS[slice,:,:,:])
         cs_data[slice,:,:] = CS(masked_kspace[slice,:,:,:], S)
     print("Shape of the numpy-converted CS data: ", str(cs_data.shape))
+    # Check if 'cs_data' key exists
+    if 'cs_data' in hf:
+        del hf['cs_data'] # Delete the existing dataset
     # Add a key to the h5 file with cs_data inside it
     hf.create_dataset('cs_data', data=cs_data)
     hf.close()

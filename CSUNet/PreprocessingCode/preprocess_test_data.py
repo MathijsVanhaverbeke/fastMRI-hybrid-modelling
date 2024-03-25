@@ -110,6 +110,9 @@ for file in files:
         cs_data[slice,:,:] = CS(masked_kspace[slice,:,:,:], S)
     print("Shape of the numpy-converted CS data: ", str(cs_data.shape))
     hf = h5py.File(file, 'a') # Open in append mode!
+    # Check if 'cs_data' key exists
+    if 'cs_data' in hf:
+        del hf['cs_data'] # Delete the existing dataset
     # Add a key to the h5 file with cs_data inside it
     hf.create_dataset('cs_data', data=cs_data)
     hf.close()

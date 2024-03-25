@@ -121,6 +121,9 @@ for file in files:
         sense_data[slice,:,:] = CG_SENSE(masked_kspace[slice,:,:,:], S)
     print("Shape of the numpy-converted sense data: ", str(sense_data.shape))
     hf = h5py.File(file, 'a') # Open in append mode!
+    # Check if 'sense_data' key exists
+    if 'sense_data' in hf:
+        del hf['sense_data'] # Delete the existing dataset
     # Add a key to the h5 file with sense_data inside it
     hf.create_dataset('sense_data', data=sense_data)
     hf.close()

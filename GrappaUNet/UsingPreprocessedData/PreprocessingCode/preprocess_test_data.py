@@ -95,6 +95,9 @@ for file in files:
     print("Shape of the preprocessed grappa data: ", str(grappa_data.shape))
     grappa_data = tensor_to_complex_np(grappa_data)
     print("Shape of the numpy-converted grappa data: ", str(grappa_data.shape))
+    # Check if 'grappa_data' key exists
+    if 'grappa_data' in hf:
+        del hf['grappa_data'] # Delete the existing dataset
     # Add a key to the h5 file with grappa_data inside it
     hf.create_dataset('grappa_data', data=grappa_data)
     hf.close()

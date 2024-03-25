@@ -7,12 +7,14 @@ from pygrappa import grappa
 import torch
 import time
 import gc
+import random
 
 folder_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/multicoil_val/'
 files = Path(folder_path).glob('**/*')
 file_count = 1
 
-mask_func = create_mask_for_mask_type('equispaced', [0.08], [4])
+def fifty_fifty():
+    return random.random() < .5
 
 def to_tensor(data: np.ndarray) -> torch.Tensor:
     """
@@ -80,11 +82,16 @@ def apply_grappa(masked_kspace, mask):
 
 for file in files:
     print(str(file_count)+". Starting to process file "+str(file)+'...')
+    undersampling_bool = fifty_fifty()
     hf = h5py.File(file, 'a') # Open in append mode
     kspace = hf['kspace'][()]
     print("Shape of the raw kspace: ", str(np.shape(kspace)))
     kspace_torch = T.to_tensor(kspace)
     print("Shape of the torch tensor: ", str(kspace_torch.shape))
+    if undersampling_bool:
+        mask_func = create_mask_for_mask_type('equispaced', [0.08], [4])
+    else:
+        mask_func = create_mask_for_mask_type('equispaced', [0.04], [8])
     masked_kspace, mask, _ = T.apply_mask(kspace_torch, mask_func, seed=42) # Use seed for validation data
     print("Shape of the generated mask: ", str(mask.shape))
     grappa_data = torch.zeros([masked_kspace.shape[0],masked_kspace.shape[1],masked_kspace.shape[2],masked_kspace.shape[3],masked_kspace.shape[4]])
@@ -93,6 +100,9 @@ for file in files:
     print("Shape of the preprocessed grappa data: ", str(grappa_data.shape))
     grappa_data = tensor_to_complex_np(grappa_data)
     print("Shape of the numpy-converted grappa data: ", str(grappa_data.shape))
+    # Check if 'grappa_data' key exists
+    if 'grappa_data' in hf:
+        del hf['grappa_data'] # Delete the existing dataset
     # Add a key to the h5 file with grappa_data inside it
     hf.create_dataset('grappa_data', data=grappa_data)
     hf.close()

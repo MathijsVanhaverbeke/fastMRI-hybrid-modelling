@@ -7,10 +7,14 @@ import torch
 import time
 import gc
 import bart
+import random
 
 folder_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/multicoil_val/'
 files = Path(folder_path).glob('**/*')
 file_count = 1
+
+def fifty_fifty():
+    return random.random() < .5
 
 def apply_mask(slice_kspace, mask_func):
     ''' 
@@ -95,13 +99,20 @@ def CG_SENSE(kspace, S, lamda=0.005, num_iter=50):
 
 for file in files:
     print(str(file_count)+". Starting to process file "+str(file)+'...')
+    undersampling_bool = fifty_fifty()
     hf = h5py.File(file, 'a') # Open in append mode
     kspace = hf['kspace'][()]
     print("Shape of the raw kspace: ", str(np.shape(kspace)))
-    mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4], seed=42) # Use seed for validation data
+    if undersampling_bool:
+        mask_func = EquispacedMaskFunc(center_fractions=[0.08], accelerations=[4], seed=42) # Use seed for validation data
+    else:
+        mask_func = EquispacedMaskFunc(center_fractions=[0.04], accelerations=[8], seed=42) # Use seed for validation data
     masked_kspace_ACS, mask_ACS = apply_mask(kspace, mask_func)
     print("Shape of the generated ACS mask: ", str(mask_ACS.shape))
-    mask = generate_array(kspace.shape, 4, tensor_out=False)
+    if undersampling_bool:
+        mask = generate_array(kspace.shape, 4, tensor_out=False)
+    else:
+        mask = generate_array(kspace.shape, 8, tensor_out=False)
     masked_kspace = kspace * mask + 0.0
     print("Shape of the generated SENSE mask: ", str(mask.shape))
     sense_data = np.zeros((kspace.shape[0], kspace.shape[2], kspace.shape[3]), dtype=np.complex64)
@@ -109,6 +120,9 @@ for file in files:
         S = estimate_sensitivity_maps(masked_kspace_ACS[slice,:,:,:])
         sense_data[slice,:,:] = CG_SENSE(masked_kspace[slice,:,:,:], S)
     print("Shape of the numpy-converted sense data: ", str(sense_data.shape))
+    # Check if 'sense_data' key exists
+    if 'sense_data' in hf:
+        del hf['sense_data'] # Delete the existing dataset
     # Add a key to the h5 file with sense_data inside it
     hf.create_dataset('sense_data', data=sense_data)
     hf.close()
