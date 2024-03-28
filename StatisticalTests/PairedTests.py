@@ -40,7 +40,7 @@ def evaluate(args, recons_key):
 
             if args.acceleration:
                 filename = tgt_file.name
-                mask_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/multicoil_test/'
+                mask_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/multicoil_test/'
                 mask = h5py.File(os.path.join(mask_path,filename),'r')
                 nPE_mask = mask['mask'][()]
                 sampled_columns = np.sum(nPE_mask)

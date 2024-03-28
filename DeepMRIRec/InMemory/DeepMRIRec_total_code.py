@@ -32,8 +32,7 @@ print('Libraries imported. Starting to prepare the dataset...')
 
 ## Prepare dataset
 
-download_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI'
-dicom_path = os.path.join(download_path,'fastMRI_brain_DICOM')
+download_path = '/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed'
 train_path = os.path.join(download_path,'multicoil_train')
 validation_path = os.path.join(download_path,'multicoil_val')
 test_path = os.path.join(download_path,'multicoil_test')
