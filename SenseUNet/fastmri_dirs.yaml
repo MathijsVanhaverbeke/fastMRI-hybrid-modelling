@@ -1,2 +1,2 @@
 brain_path: /usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/
-log_path: /usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/GitLab/master_thesis/SenseUNet/Checkpoints_combined_R/
+log_path: /usr/local/micapollo01/MIC/DATA/STUDENTS/mvhave7/Results/GitLab/master_thesis/SenseUNet/Checkpoints_combined_R_regularized/

@@ -10,9 +10,10 @@ from argparse import ArgumentParser
 
 import pytorch_lightning as pl
 from fastmri.data.mri_data import fetch_dir
-from preprocessed_transforms import UnetDataTransform
-from modified_unet_module import UnetModule
-from preprocessed_data_module import FastMriDataModule
+from fastmri.data.subsample import create_mask_for_mask_type
+from fastmri.data.transforms import UnetDataTransform
+from fastmri.pl_modules import FastMriDataModule
+from unet_module import UnetModule
 
 
 def cli_main(args):
@@ -21,11 +22,13 @@ def cli_main(args):
     # ------------
     # data
     # ------------
-    ####################################################################################
-    # Modified to be compatible with preprocessed grappa data appended to the h5 files #
-    ####################################################################################
-    train_transform = UnetDataTransform(args.challenge)
-    val_transform = UnetDataTransform(args.challenge)
+    # this creates a k-space mask for transforming input data
+    mask = create_mask_for_mask_type(
+        args.mask_type, args.center_fractions, args.accelerations
+    )
+    # use random masks for train transform, fixed masks for val transform
+    train_transform = UnetDataTransform(args.challenge, mask_func=mask, use_seed=False)
+    val_transform = UnetDataTransform(args.challenge, mask_func=mask)
     test_transform = UnetDataTransform(args.challenge)
     # ptl data module - this handles data loaders
     data_module = FastMriDataModule(

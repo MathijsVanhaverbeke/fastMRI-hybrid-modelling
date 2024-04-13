@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 import pytorch_lightning as pl
 from fastmri.data.mri_data import fetch_dir
 from preprocessed_transforms import UnetDataTransform
-from fastmri.pl_modules import UnetModule
+from modified_unet_module import UnetModule
 from preprocessed_data_module import FastMriDataModule
 
 
@@ -137,7 +137,7 @@ def build_args():
         lr=0.001,  # RMSProp learning rate
         lr_step_size=40,  # epoch at which to decrease learning rate
         lr_gamma=0.1,  # extent to which to decrease learning rate
-        weight_decay=0.0,  # weight decay regularization strength
+        weight_decay=0.0005,  # weight decay (L2) regularization strength
     )
 
     # trainer config
