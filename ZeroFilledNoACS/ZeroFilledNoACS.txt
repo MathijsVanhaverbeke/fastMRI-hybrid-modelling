@@ -1,0 +1,3 @@
+https://github.com/facebookresearch/fastMRI/tree/main/fastmri_examples/zero_filled
+
+conda: DL_MRI_reconstruction_baselines
