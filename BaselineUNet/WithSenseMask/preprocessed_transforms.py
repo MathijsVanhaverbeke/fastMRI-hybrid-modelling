@@ -280,6 +280,7 @@ class UnetDataTransform:
         else:
             mask = generate_array(kspace.shape, 8, tensor_out=False)
         masked_kspace = kspace * mask + 0.0
+        masked_kspace = masked_kspace.astype(np.complex64)
 
         kspace_torch = to_tensor(masked_kspace)
 

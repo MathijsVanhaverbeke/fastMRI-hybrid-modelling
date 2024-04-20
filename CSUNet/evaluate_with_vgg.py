@@ -42,6 +42,10 @@ def vgg_loss(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
     # Initialize a list to store the losses for each image in the batch
     losses = []
 
+    # Convert inputs to the expected pixel range for RGB networks
+    gt = gt*255
+    pred = pred*255
+
     # Loop over each image in the batch
     for gt_image, pred_image in zip(gt, pred):
         # Preprocess the images
@@ -64,6 +68,33 @@ def vgg_loss(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
     avg_loss = torch.mean(torch.stack(losses))
 
     return avg_loss.detach().cpu().numpy()
+
+
+def stacked_svd(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """
+    Compute the average number of Singular Values required 
+    to explain 90% of the variance in the residual error maps 
+    of the reconstruction
+    """
+    residual_error_map = (gt-pred)**2
+    U, S, Vh = np.linalg.svd(residual_error_map, full_matrices=True)
+    num_slices = S.shape[0]
+    im_size = S.shape[-1]
+    singular_values_1d = S.flatten()
+    abs_core = np.abs(singular_values_1d)
+    sorted_indices = abs_core.argsort()[::-1]
+    sorted_core = abs_core[sorted_indices]
+
+    total_variance = np.sum(np.abs(sorted_core))
+
+    # Calculate the cumulative sum of singular values
+    cumulative_sum = np.cumsum(np.abs(sorted_core))
+
+    num_svs = np.where(cumulative_sum >= 0.9*total_variance)[0][0] + 1
+
+    num_svs_average = num_svs / num_slices
+
+    return num_svs_average / im_size
 
 
 def mse(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
@@ -111,6 +142,7 @@ METRIC_FUNCS = dict(
     PSNR=psnr,
     SSIM=ssim,
     VGG=vgg_loss,
+    SVD=stacked_svd,
 )
 
 

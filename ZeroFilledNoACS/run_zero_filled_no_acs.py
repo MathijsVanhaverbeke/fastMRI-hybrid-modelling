@@ -65,6 +65,7 @@ def save_zero_filled(data_dir, out_dir, which_challenge):
             else:
                 mask = generate_array(kspace.shape, 8, tensor_out=False)
             masked_kspace_np = kspace * mask + 0.0
+            masked_kspace_np = masked_kspace_np.astype(np.complex64)
             masked_kspace = transforms.to_tensor(masked_kspace_np)
 
             # extract target image width, height from ismrmrd header
