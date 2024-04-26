@@ -23,6 +23,11 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
+import torch
+from torchvision.models import vgg19
+from torchvision.transforms import Compose, ToTensor, Normalize, CenterCrop, Lambda
+
+
 
 def plot_arrays(array1, array2, metric, model_name_1, model_name_2, save_path):
     # Create a figure with 4 subplots
@@ -133,6 +138,10 @@ def evaluate(args, recons_key):
     PSNR_2 = {}
     SSIM_1 = {}
     SSIM_2 = {}
+    VGG_1 = {}
+    VGG_2 = {}
+    SVD_1 = {}
+    SVD_2 = {}
 
     for tgt_file in args.target_path.iterdir():
         with h5py.File(tgt_file, "r") as target, h5py.File(args.predictions_1_path / tgt_file.name, "r") as recons_1, \
@@ -171,6 +180,10 @@ def evaluate(args, recons_key):
             PSNR_2[tgt_file.name] = psnr(target, recons_2).item()
             SSIM_1[tgt_file.name] = ssim(target, recons_1).item()
             SSIM_2[tgt_file.name] = ssim(target, recons_2).item()
+            VGG_1[tgt_file.name] = vgg_loss(target, recons_1).item()
+            VGG_2[tgt_file.name] = vgg_loss(target, recons_2).item()
+            SVD_1[tgt_file.name] = stacked_svd(target, recons_1).item()
+            SVD_2[tgt_file.name] = stacked_svd(target, recons_2).item()
 
     MSE_1_array = np.array(list(MSE_1.values()))
     MSE_2_array = np.array(list(MSE_2.values()))
@@ -180,21 +193,31 @@ def evaluate(args, recons_key):
     PSNR_2_array = np.array(list(PSNR_2.values()))
     SSIM_1_array = np.array(list(SSIM_1.values()))
     SSIM_2_array = np.array(list(SSIM_2.values()))
+    VGG_1_array = np.array(list(VGG_1.values()))
+    VGG_2_array = np.array(list(VGG_2.values()))
+    SVD_1_array = np.array(list(SVD_1.values()))
+    SVD_2_array = np.array(list(SVD_2.values()))
 
     plot_arrays(MSE_1_array, MSE_2_array, 'MSE', args.model1, args.model2, args.save_results_path)
     plot_arrays(NMSE_1_array, NMSE_2_array, 'NMSE', args.model1, args.model2, args.save_results_path)
     plot_arrays(PSNR_1_array, PSNR_2_array, 'PSNR', args.model1, args.model2, args.save_results_path)
     plot_arrays(SSIM_1_array, SSIM_2_array, 'SSIM', args.model1, args.model2, args.save_results_path)
+    plot_arrays(VGG_1_array, VGG_2_array, 'VGG', args.model1, args.model2, args.save_results_path)
+    plot_arrays(SVD_1_array, SVD_2_array, 'SVD', args.model1, args.model2, args.save_results_path)
 
     plot_array_differences(MSE_1_array, MSE_2_array, 'MSE', args.model1, args.model2, args.save_results_path)
     plot_array_differences(NMSE_1_array, NMSE_2_array, 'NMSE', args.model1, args.model2, args.save_results_path)
     plot_array_differences(PSNR_1_array, PSNR_2_array, 'PSNR', args.model1, args.model2, args.save_results_path)
     plot_array_differences(SSIM_1_array, SSIM_2_array, 'SSIM', args.model1, args.model2, args.save_results_path)
+    plot_array_differences(VGG_1_array, VGG_2_array, 'VGG', args.model1, args.model2, args.save_results_path)
+    plot_array_differences(SVD_1_array, SVD_2_array, 'SVD', args.model1, args.model2, args.save_results_path)
 
     find_out_outliers(MSE_1_array, MSE_2_array, MSE_1, MSE_2, 'MSE', args.model1, args.model2, args.save_results_path)
     find_out_outliers(NMSE_1_array, NMSE_2_array, NMSE_1, NMSE_2, 'NMSE', args.model1, args.model2, args.save_results_path)
     find_out_outliers(PSNR_1_array, PSNR_2_array, PSNR_1, PSNR_2, 'PSNR', args.model1, args.model2, args.save_results_path)
     find_out_outliers(SSIM_1_array, SSIM_2_array, SSIM_1, SSIM_2, 'SSIM', args.model1, args.model2, args.save_results_path)
+    find_out_outliers(VGG_1_array, VGG_2_array, VGG_1, VGG_2, 'VGG', args.model1, args.model2, args.save_results_path)
+    find_out_outliers(SVD_1_array, SVD_2_array, SVD_1, SVD_2, 'SVD', args.model1, args.model2, args.save_results_path)
 
 
 def mse(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
@@ -234,6 +257,80 @@ def ssim(
         )
 
     return ssim / gt.shape[0]
+
+
+def stacked_svd(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """
+    Compute the average number of Singular Values required 
+    to explain 90% of the variance in the residual error maps 
+    of the reconstruction
+    """
+    residual_error_map = (gt-pred)**2
+    U, S, Vh = np.linalg.svd(residual_error_map, full_matrices=True)
+    num_slices = S.shape[0]
+    im_size = S.shape[-1]
+    singular_values_1d = S.flatten()
+    abs_core = np.abs(singular_values_1d)
+    sorted_indices = abs_core.argsort()[::-1]
+    sorted_core = abs_core[sorted_indices]
+
+    total_variance = np.sum(np.abs(sorted_core))
+
+    # Calculate the cumulative sum of singular values
+    cumulative_sum = np.cumsum(np.abs(sorted_core))
+
+    num_svs = np.where(cumulative_sum >= 0.9*total_variance)[0][0] + 1
+
+    num_svs_average = num_svs / num_slices
+
+    return num_svs_average / im_size
+
+
+# Define the preprocessing steps for the VGG loss
+preprocess = Compose([
+    ToTensor(),
+    CenterCrop((224, 224)), # Ensure the center part of the image is used
+    Lambda(lambda x: x.repeat(3, 1, 1) if x.size(0)==1 else x),
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+def vgg_loss(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute VGG loss metric."""
+    # Load the pre-trained VGG19 model
+    vgg = vgg19(pretrained=True).features
+
+    # Remove the last max pooling layer to get the feature maps
+    vgg = torch.nn.Sequential(*list(vgg.children())[:-1])
+
+    # Initialize a list to store the losses for each image in the batch
+    losses = []
+
+    # Convert inputs to the expected pixel range for RGB networks
+    gt = gt*255
+    pred = pred*255
+
+    # Loop over each image in the batch
+    for gt_image, pred_image in zip(gt, pred):
+        # Preprocess the images
+        gt_image = preprocess(gt_image)
+        pred_image = preprocess(pred_image)
+
+        # Ensure the images are batched
+        gt_image = gt_image.unsqueeze(0)
+        pred_image = pred_image.unsqueeze(0)
+
+        # Extract features
+        gt_features = vgg(gt_image)
+        pred_features = vgg(pred_image)
+
+        # Calculate VGG loss for the current pair of images
+        loss = torch.nn.functional.mse_loss(gt_features, pred_features)
+        losses.append(loss)
+
+    # Average the losses across all images in the batch
+    avg_loss = torch.mean(torch.stack(losses))
+
+    return avg_loss.detach().cpu().numpy()
 
 
 if __name__ == "__main__":

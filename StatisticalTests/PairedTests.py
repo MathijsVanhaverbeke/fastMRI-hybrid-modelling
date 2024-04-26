@@ -18,6 +18,10 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 from fastmri.data import transforms
 
+import torch
+from torchvision.models import vgg19
+from torchvision.transforms import Compose, ToTensor, Normalize, CenterCrop, Lambda
+
 
 def evaluate(args, recons_key):
 
@@ -31,6 +35,10 @@ def evaluate(args, recons_key):
     PSNR_2 = []
     SSIM_1 = []
     SSIM_2 = []
+    VGG_1 = []
+    VGG_2 = []
+    SVD_1 = []
+    SVD_2 = []
 
     for tgt_file in args.target_path.iterdir():
         with h5py.File(tgt_file, "r") as target, h5py.File(args.predictions_1_path / tgt_file.name, "r") as recons_1, \
@@ -69,6 +77,10 @@ def evaluate(args, recons_key):
             PSNR_2.append(psnr(target, recons_2).item())
             SSIM_1.append(ssim(target, recons_1).item())
             SSIM_2.append(ssim(target, recons_2).item())
+            VGG_1.append(vgg_loss(target, recons_1).item())
+            VGG_2.append(vgg_loss(target, recons_2).item())
+            SVD_1.append(stacked_svd(target, recons_1).item())
+            SVD_2.append(stacked_svd(target, recons_2).item())
     
     metrics_1['MSE'] = np.array(MSE_1)
     metrics_2['MSE'] = np.array(MSE_2)
@@ -78,6 +90,10 @@ def evaluate(args, recons_key):
     metrics_2['PSNR'] = np.array(PSNR_2)
     metrics_1['SSIM'] = np.array(SSIM_1)
     metrics_2['SSIM'] = np.array(SSIM_2)
+    metrics_1['VGG'] = np.array(VGG_1)
+    metrics_2['VGG'] = np.array(VGG_2)
+    metrics_1['SVD'] = np.array(SVD_1)
+    metrics_2['SVD'] = np.array(SVD_2)
 
     return metrics_1, metrics_2
 
@@ -91,14 +107,14 @@ def perform_pairwise_t_test(metrics_1, metrics_2):
         _, p_value_shapiro = stats.shapiro(metric_1-metric_2)
         if p_value_shapiro < 0.05:
             print("WARNING: the paired differences are likely not normally distributed, as shapiro's p-value equals: ", str(p_value_shapiro))
-        _, p_value_w = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='two-sided')
-        print("For pairwise values of metric {}, the following result was obtained from a two-sided Wilcoxon signed-rank test: p-value = {}.".format(m_name_1, str(p_value_w)))
-        if p_value_w < 0.05:
-            print("The median of the differences between the paired observations is significantly different from zero. Let's confirm the direction of the difference through one-sided Wilcoxon signed-rank tests now.")
-            _, p_value_w_greater = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='greater')
-            print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the positive direction: p-value = {}.".format(m_name_1, str(p_value_w_greater)))
-            _, p_value_w_less = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='less')
-            print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the negative direction: p-value = {}.".format(m_name_1, str(p_value_w_less)))
+            _, p_value_w = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='two-sided')
+            print("For pairwise values of metric {}, the following result was obtained from a two-sided Wilcoxon signed-rank test: p-value = {}.".format(m_name_1, str(p_value_w)))
+            if p_value_w < 0.05:
+                print("The median of the differences between the paired observations is significantly different from zero. Let's confirm the direction of the difference through one-sided Wilcoxon signed-rank tests now.")
+                _, p_value_w_greater = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='greater')
+                print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the positive direction: p-value = {}.".format(m_name_1, str(p_value_w_greater)))
+                _, p_value_w_less = stats.wilcoxon(metric_1, metric_2, nan_policy='raise', alternative='less')
+                print("For pairwise values of metric {}, the following result was obtained from a one-sided Wilcoxon signed-rank test in the negative direction: p-value = {}.".format(m_name_1, str(p_value_w_less)))
         print()
 
 
@@ -139,6 +155,80 @@ def ssim(
         )
 
     return ssim / gt.shape[0]
+
+
+def stacked_svd(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """
+    Compute the average number of Singular Values required 
+    to explain 90% of the variance in the residual error maps 
+    of the reconstruction
+    """
+    residual_error_map = (gt-pred)**2
+    U, S, Vh = np.linalg.svd(residual_error_map, full_matrices=True)
+    num_slices = S.shape[0]
+    im_size = S.shape[-1]
+    singular_values_1d = S.flatten()
+    abs_core = np.abs(singular_values_1d)
+    sorted_indices = abs_core.argsort()[::-1]
+    sorted_core = abs_core[sorted_indices]
+
+    total_variance = np.sum(np.abs(sorted_core))
+
+    # Calculate the cumulative sum of singular values
+    cumulative_sum = np.cumsum(np.abs(sorted_core))
+
+    num_svs = np.where(cumulative_sum >= 0.9*total_variance)[0][0] + 1
+
+    num_svs_average = num_svs / num_slices
+
+    return num_svs_average / im_size
+
+
+# Define the preprocessing steps for the VGG loss
+preprocess = Compose([
+    ToTensor(),
+    CenterCrop((224, 224)), # Ensure the center part of the image is used
+    Lambda(lambda x: x.repeat(3, 1, 1) if x.size(0)==1 else x),
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+def vgg_loss(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute VGG loss metric."""
+    # Load the pre-trained VGG19 model
+    vgg = vgg19(pretrained=True).features
+
+    # Remove the last max pooling layer to get the feature maps
+    vgg = torch.nn.Sequential(*list(vgg.children())[:-1])
+
+    # Initialize a list to store the losses for each image in the batch
+    losses = []
+
+    # Convert inputs to the expected pixel range for RGB networks
+    gt = gt*255
+    pred = pred*255
+
+    # Loop over each image in the batch
+    for gt_image, pred_image in zip(gt, pred):
+        # Preprocess the images
+        gt_image = preprocess(gt_image)
+        pred_image = preprocess(pred_image)
+
+        # Ensure the images are batched
+        gt_image = gt_image.unsqueeze(0)
+        pred_image = pred_image.unsqueeze(0)
+
+        # Extract features
+        gt_features = vgg(gt_image)
+        pred_features = vgg(pred_image)
+
+        # Calculate VGG loss for the current pair of images
+        loss = torch.nn.functional.mse_loss(gt_features, pred_features)
+        losses.append(loss)
+
+    # Average the losses across all images in the batch
+    avg_loss = torch.mean(torch.stack(losses))
+
+    return avg_loss.detach().cpu().numpy()
 
 
 if __name__ == "__main__":
