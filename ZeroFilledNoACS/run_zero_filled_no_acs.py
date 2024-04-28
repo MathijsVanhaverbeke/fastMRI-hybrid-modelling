@@ -12,7 +12,6 @@ from pathlib import Path
 import h5py
 from tqdm import tqdm
 
-import random
 import numpy as np
 
 import fastmri
@@ -20,8 +19,25 @@ from fastmri.data import transforms
 from fastmri.data.mri_data import et_query
 
 
-def fifty_fifty():
-    return random.random() < .5
+def closer_to_4_or_8(float):
+    diff_4 = np.abs(float - 4)
+    diff_8 = np.abs(float - 8)
+
+    if diff_4 < diff_8:
+        return int(4)
+    elif diff_8 < diff_4:
+        return int(8)
+
+
+def find_original_R(fname):
+    file_name = fname.name
+    original_test_file = Path("/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/multicoil_test/") / file_name
+    hf = h5py.File(original_test_file, 'r') # Open in read mode!
+    nPE_mask = hf['mask'][()]
+    sampled_columns = np.sum(nPE_mask)
+    R = len(nPE_mask)/sampled_columns
+    R = float(R)
+    return closer_to_4_or_8(R)
 
 
 def generate_array(shape, R, tensor_out):
@@ -56,14 +72,10 @@ def save_zero_filled(data_dir, out_dir, which_challenge):
     reconstructions = {}
 
     for fname in tqdm(list(data_dir.glob("*.h5"))):
-        undersampling_bool = fifty_fifty()
         with h5py.File(fname, "r") as hf:
             et_root = etree.fromstring(hf["ismrmrd_header"][()])
             kspace = hf["kspace"][()]
-            if undersampling_bool:
-                mask = generate_array(kspace.shape, 4, tensor_out=False)
-            else:
-                mask = generate_array(kspace.shape, 8, tensor_out=False)
+            mask = generate_array(kspace.shape, find_original_R(fname), tensor_out=False)
             masked_kspace_np = kspace * mask + 0.0
             masked_kspace_np = masked_kspace_np.astype(np.complex64)
             masked_kspace = transforms.to_tensor(masked_kspace_np)
