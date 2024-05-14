@@ -1,10 +1,3 @@
-"""
-Copyright (c) Facebook, Inc. and its affiliates.
-
-This source code is licensed under the MIT license found in the
-LICENSE file in the root directory of this source tree.
-"""
-
 import os
 import argparse
 import pathlib
@@ -17,6 +10,84 @@ from runstats import Statistics
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 from fastmri.data import transforms
+
+import torch
+from torchvision.models import vgg19
+from torchvision.transforms import Compose, ToTensor, Normalize, CenterCrop, Lambda
+
+
+# Define the preprocessing steps for the VGG loss
+preprocess = Compose([
+    ToTensor(),
+    CenterCrop((224, 224)), # Ensure the center part of the image is used
+    Lambda(lambda x: x.repeat(3, 1, 1) if x.size(0)==1 else x),
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+def vgg_loss(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute VGG loss metric."""
+    # Load the pre-trained VGG19 model
+    vgg = vgg19(pretrained=True).features
+
+    # Remove the last max pooling layer to get the feature maps
+    vgg = torch.nn.Sequential(*list(vgg.children())[:-1])
+
+    # Initialize a list to store the losses for each image in the batch
+    losses = []
+
+    # Convert inputs to the expected pixel range for RGB networks
+    gt = gt*255
+    pred = pred*255
+
+    # Loop over each image in the batch
+    for gt_image, pred_image in zip(gt, pred):
+        # Preprocess the images
+        gt_image = preprocess(gt_image)
+        pred_image = preprocess(pred_image)
+
+        # Ensure the images are batched
+        gt_image = gt_image.unsqueeze(0)
+        pred_image = pred_image.unsqueeze(0)
+
+        # Extract features
+        gt_features = vgg(gt_image)
+        pred_features = vgg(pred_image)
+
+        # Calculate VGG loss for the current pair of images
+        loss = torch.nn.functional.mse_loss(gt_features, pred_features)
+        losses.append(loss)
+
+    # Average the losses across all images in the batch
+    avg_loss = torch.mean(torch.stack(losses))
+
+    return avg_loss.detach().cpu().numpy()
+
+
+def stacked_svd(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """
+    Compute the average number of Singular Values required 
+    to explain 90% of the variance in the residual error maps 
+    of the reconstruction
+    """
+    residual_error_map = (gt-pred)**2
+    U, S, Vh = np.linalg.svd(residual_error_map, full_matrices=True)
+    num_slices = S.shape[0]
+    im_size = S.shape[-1]
+    singular_values_1d = S.flatten()
+    abs_core = np.abs(singular_values_1d)
+    sorted_indices = abs_core.argsort()[::-1]
+    sorted_core = abs_core[sorted_indices]
+
+    total_variance = np.sum(np.abs(sorted_core))
+
+    # Calculate the cumulative sum of singular values
+    cumulative_sum = np.cumsum(np.abs(sorted_core))
+
+    num_svs = np.where(cumulative_sum >= 0.9*total_variance)[0][0] + 1
+
+    num_svs_average = num_svs / num_slices
+
+    return num_svs_average / im_size
 
 
 def mse(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
@@ -63,6 +134,8 @@ METRIC_FUNCS = dict(
     NMSE=nmse,
     PSNR=psnr,
     SSIM=ssim,
+    VGG=vgg_loss,
+    SVD=stacked_svd,
 )
 
 
