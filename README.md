@@ -1,23 +1,20 @@
 # Master's Thesis - Mathijs Vanhaverbeke
-Code base of my master's thesis (2023-2024), submitted for the degree of M.Sc. in Biomedical Engineering, option Biomedical Data Analytics
+Code base of my master's thesis (2023-2024), submitted for the degree of M.Sc. in Biomedical Engineering, option Biomedical Data Analytics.
 
 
-Title: Influence of hybrid modelling on deep learning-based MRI reconstruction performance
+Title: Influence of hybrid modelling on deep learning-based MRI reconstruction performance.
 
 
 ## Used dataset
-In this thesis, the fastMRI dataset is used. The used, preprocessed version of the fastMRI data can be found on the location:
-
-
-/usr/local/micapollo01/MIC/DATA/SHARED/NYU_FastMRI/Preprocessed/
+In this thesis, the fastMRI dataset is used. This dataset can be obtained at the official [fastMRI website](https://fastmri.med.nyu.edu/) Note, however, that the hybrid models require that their corresponding preprocessing scripts have already ran.
 
 
 ## Contributions
 During the past year, multiple models and methods were explored. Ultimately, the code in this repository is related to four things:
 - fastMRI data exploration
-- Evaluation metric implementations
-- Validation of DeepMRIRec
-- Hybrid Neural Network comparisons
+- Evaluation metric implementations (metrics are compared and a new metric is introduced)
+- Validation of [DeepMRIRec](https://github.com/stjude/DeepMRIRec/tree/main)
+- Hybrid Neural Network comparisons (main focus of this work)
 
 
 ## Repository structure
@@ -45,14 +42,18 @@ The folders BaselineUNet, CS, CSUNet, Grappa, GrappaUNet, Sense, SenseUNet, Zero
 The folders fastMRI, ModelWeightsComparison, Overfitexperiments, and StatisticalTests are all related to data and results analyses. These mostly contain notebooks, with their content and related comments speaking for itself.
 
 
-Lastly, the folder DeepMRIRec contains the used code for the training of DeepMRIRec. This folder contains the code for multiple variations of its architecture, and multiple variations of the used dataloader. When wanting to run the model on micsd01, the small GPU version of the model needs to be used, as the original version is quite heavy.
+Lastly, the folder DeepMRIRec contains the used code for the training of DeepMRIRec. This folder contains the code for multiple variations of its architecture, and multiple variations of the used dataloader. When wanting to run the model, the small GPU version of the model might need to be used, as the original version is quite heavy.
+
+
+## Creating correct conda environments
+Throughout this repository, three different conda environments are used. In order to make the code as plug-and-play as possible, these conda environments were exported to .yml files and inserted in this repository. Additionally, a .txt file was created indicating which python versions to use.
 
 
 ## Training the HNNs
 This is done through the commandline, for example:
 - Go to the folder of the desired HNN
 - Activate the correct conda env, listed in the .txt file
-- Run 'micgpu 6 python UNet.py --mode train --challenge multicoil --mask_type equispaced --center_fractions 0.08 0.04 --accelerations 4 8'
+- Run `python UNet.py --mode train --challenge multicoil --mask_type equispaced --center_fractions 0.08 0.04 --accelerations 4 8`
 
 
 Configs for where to save checkpoints and metadata can be changed in the folder's yaml file.
@@ -62,7 +63,7 @@ Configs for where to save checkpoints and metadata can be changed in the folder'
 This is done through the commandline, for example:
 - Go to the folder of the desired HNN
 - Activate the correct conda env, listed in the .txt file
-- Run 'micgpu 6 python UNet.py --mode test --challenge multicoil --mask_type equispaced --resume_from_checkpoint checkpoint-path'
+- Run `python UNet.py --mode test --challenge multicoil --mask_type equispaced --resume_from_checkpoint checkpoint-path`
 - Change checkpoint-path to the correct path
 
 
@@ -73,7 +74,7 @@ Configs for where to save reconstructions made on the test dataset can be change
 This is done through the commandline, for example:
 - Go to the folder of the desired HNN
 - Activate the correct conda env, listed in the .txt file
-- Run 'micgpu 6 python evaluate_with_vgg_and_mask.py --target-path path1 --predictions-path path2 --challenge multicoil --acceleration 4'
+- Run `python evaluate_with_vgg_and_mask.py --target-path path1 --predictions-path path2 --challenge multicoil --acceleration 4`
 - Change path1 and path2 to the correct paths
 
 
@@ -87,7 +88,7 @@ Other examples of how to use the commandline to run the code can often be found 
 ## Training DeepMRIRec
 The files pertaining to the validation of DeepMRIRec can be found in the DeepMRIRec folder. Make sure you use a GPU when running a DeepMRIRec training process. The micgpu command only ensures that if you use GPU, this is done on the desired GPU number. Luckily, when using tensorflow, models will transparently run on a single GPU with no code changes required if the tensorflow's required CUDA and cuDNN versions are installed and added to the PATH and LD_LIBRARY_PATH variables. If this is not the case, CUDA will throw an error and start using a CPU. The following set-up is known to work for tensorflow 2.2.0, used by the DL_MRI_reconstruction conda environment compatible with the code of DeepMRIRec:
 - Activate the conda env DL_MRI_reconstruction
-- In your terminal run 'source cuda_settings.sh'
+- In your terminal run `source cuda_settings.sh`
 
 
 Note that this is not necessary for the HNNs' code, as their conda environments automatically handle GPU usage there.
