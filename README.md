@@ -5,6 +5,9 @@ Code base of my master's thesis (2023-2024), submitted for the degree of M.Sc. i
 Title: Influence of hybrid modelling on deep learning-based MRI reconstruction performance.
 
 
+![plot](./CS_reconstruction_comparison.png)
+
+
 ## Used dataset
 In this thesis, the fastMRI dataset is used. This dataset can be obtained at the official [fastMRI website](https://fastmri.med.nyu.edu/) Note, however, that the hybrid models require that their corresponding preprocessing scripts have already ran.
 
