@@ -97,3 +97,11 @@ The files pertaining to the validation of DeepMRIRec can be found in the DeepMRI
 
 Note that this is not necessary for the HNNs' code, as their conda environments automatically handle GPU usage there.
 
+
+## Reference
+When using anything of this work, please refer to:
+```
+Vanhaverbeke M. (2024). Influence of hybrid modelling on deep learning-based MRI reconstruction performance. Available on: https://github.com/MathijsVanhaverbeke/fastMRI-hybrid-modelling/ [accessed on ...].
+```
+
+
