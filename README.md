@@ -5,6 +5,7 @@ Code base of my master's thesis (2023-2024), submitted for the degree of M.Sc. i
 Title: Influence of hybrid modelling on deep learning-based MRI reconstruction performance.
 
 
+Example visualisation for the SENSE reconstruction paradigm:
 ![plot](./SENSE_reconstruction_comparison.png)
 
 
