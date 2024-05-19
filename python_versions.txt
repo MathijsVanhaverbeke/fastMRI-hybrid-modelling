@@ -1,0 +1,5 @@
+Python versions of the conda environments:
+
+DL_MRI_reconstruction: python 3.6.15
+DL_MRI_reconstruction_baselines: 3.8.13
+DL_MRI_reconstruction_baselines_2: 3.6.9
