@@ -10,7 +10,7 @@ Example visualisation for the SENSE reconstruction paradigm:
 
 
 ## Used dataset
-In this thesis, the fastMRI dataset is used. This dataset can be obtained at the official [fastMRI website](https://fastmri.med.nyu.edu/) Note, however, that the hybrid models require that their corresponding preprocessing scripts have already ran.
+In this thesis, the fastMRI dataset is used. This dataset can be obtained at the official [fastMRI website](https://fastmri.med.nyu.edu/). Note, however, that the hybrid models require that their corresponding preprocessing scripts have already ran.
 
 
 ## Contributions
